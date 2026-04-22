@@ -1,10 +1,10 @@
-<header class="header bg-black text-white">
-    <div class="header-content">
-        <h2 class="page-title">
+<header class="bg-white border-b border-gray-200 px-8 py-6 sticky top-0 z-40 backdrop-blur-sm bg-white/95">
+    <div class="flex justify-between items-center flex-wrap gap-4">
+        <h2 class="text-3xl font-bold text-gray-900">
             <ng-content></ng-content>
         </h2>
-        <div class="header-actions">
-            <span class="date">{{ currentDate | date:'medium' }}</span>
+        <div class="flex items-center gap-4">
+            <span class="text-sm text-gray-500 bg-gray-50 px-4 py-2 rounded-lg">{{ currentDate | date:'medium' }}</span>
         </div>
     </div>
 </header>

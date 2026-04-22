@@ -1,57 +1,73 @@
 <app-header>Settings</app-header>
 
-<div class="settings-container">
-    <div class="settings-card">
-        <h3>Phrase TMS API Configuration</h3>
-        <p class="description">
-            Enter your Phrase API token to authenticate requests. You can generate a token from your Phrase account
-            settings.
-        </p>
+<div class="p-8 max-w-4xl mx-auto">
+    <div class="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
+        <div class="mb-8">
+            <h3 class="text-2xl font-bold text-gray-900 mb-2">Phrase TMS API Configuration</h3>
+            <p class="text-gray-600 leading-relaxed">
+                Enter your Phrase API token to authenticate requests. You can generate a token from your Phrase account
+                settings.
+            </p>
+        </div>
 
         <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()">
-            <div class="form-group">
-                <label for="apiToken">API Token <span class="required">*</span></label>
-                <div class="token-input-wrapper">
+            <div class="mb-6">
+                <label for="apiToken" class="block mb-2 font-medium text-gray-900 text-sm">
+                    API Token <span class="text-red-500">*</span>
+                </label>
+                <div class="flex gap-2">
                     <input id="apiToken" [type]="showToken ? 'text' : 'password'" formControlName="apiToken"
                         placeholder="Enter your Phrase API token"
-                        [class.error]="settingsForm.get('apiToken')?.invalid && settingsForm.get('apiToken')?.touched" />
-                    <button type="button" class="toggle-visibility" (click)="toggleTokenVisibility()"
-                        [title]="showToken ? 'Hide token' : 'Show token'">
+                        [class]="'flex-1 px-4 py-3 border rounded-lg text-sm font-mono transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ' + (settingsForm.get('apiToken')?.invalid && settingsForm.get('apiToken')?.touched ? 'border-red-500 focus:ring-red-500' : 'border-gray-300')" />
+                    <button type="button"
+                        class="px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg cursor-pointer text-xl transition-all duration-200 hover:bg-gray-100 active:scale-95"
+                        (click)="toggleTokenVisibility()" [title]="showToken ? 'Hide token' : 'Show token'">
                         {{ showToken ? '🙈' : '👁️' }}
                     </button>
                 </div>
                 <div *ngIf="settingsForm.get('apiToken')?.invalid && settingsForm.get('apiToken')?.touched"
-                    class="error-message">
+                    class="mt-2 text-red-500 text-xs">
                     API Token is required
                 </div>
             </div>
 
-            <div *ngIf="saveSuccess" class="success-message">
-                ✓ API Token saved successfully!
+            <div *ngIf="saveSuccess"
+                class="mb-6 px-6 py-4 bg-green-50 border border-green-200 text-green-800 rounded-lg flex items-center gap-2">
+                <span class="text-lg">✓</span> API Token saved successfully!
             </div>
 
-            <div class="button-group">
-                <button type="submit" class="btn btn-primary" [disabled]="settingsForm.invalid">
+            <div class="flex gap-4">
+                <button type="submit"
+                    class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    [disabled]="settingsForm.invalid">
                     Save Token
                 </button>
-                <button type="button" class="btn btn-secondary" (click)="clearToken()"
-                    [disabled]="!settingsForm.value.apiToken">
+                <button type="button"
+                    class="px-6 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium text-sm transition-all duration-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    (click)="clearToken()" [disabled]="!settingsForm.value.apiToken">
                     Clear Token
                 </button>
             </div>
         </form>
 
-        <div class="info-box">
-            <strong>ℹ️ How to get your JWT token (Recommended):</strong>
-            <ol>
-                <li>Log in to your Phrase account at <a href="https://cloud.memsource.com"
-                        target="_blank">cloud.memsource.com</a></li>
-                <li>Go to <strong>Settings → Access & Security → Access Tokens</strong></li>
-                <li>Click <strong>Generate New Token</strong></li>
-                <li>Copy the JWT token</li>
-                <li>Paste it in the field above</li>
+        <div class="mt-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+            <div class="flex items-start gap-3 mb-4">
+                <span class="text-2xl">ℹ️</span>
+                <strong class="text-gray-900 text-base">How to get your JWT token (Recommended):</strong>
+            </div>
+            <ol class="space-y-3 text-sm text-gray-700 pl-6">
+                <li class="leading-relaxed">Log in to your Phrase account at <a href="https://cloud.memsource.com"
+                        target="_blank" class="text-indigo-600 hover:underline font-medium">cloud.memsource.com</a></li>
+                <li class="leading-relaxed">Go to <strong class="text-gray-900">Settings → Access & Security → Access
+                        Tokens</strong></li>
+                <li class="leading-relaxed">Click <strong class="text-gray-900">Generate New Token</strong></li>
+                <li class="leading-relaxed">Copy the JWT token</li>
+                <li class="leading-relaxed">Paste it in the field above</li>
             </ol>
-            <p class="note">💡 This works even if you signed up with Google/Gmail (no password needed!)</p>
+            <p class="mt-4 text-sm text-indigo-700 flex items-center gap-2">
+                <span class="text-base">💡</span>
+                <span>This works even if you signed up with Google/Gmail (no password needed!)</span>
+            </p>
         </div>
     </div>
 </div>
