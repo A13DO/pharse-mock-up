@@ -51,8 +51,9 @@ export class PhraseApiService {
 
   getProjects(): Observable<ProjectsResponse> {
     return this.http
-      .get<ProjectsResponse>(`https://cloud.memsource.com/web/api2/v1/projects`, {
+      .get<ProjectsResponse>(`${this.baseUrl}/v1/projects`, {
         headers: this.getHeaders(),
+        withCredentials: true,
       })
       .pipe(catchError(this.handleError));
   }
@@ -61,6 +62,7 @@ export class PhraseApiService {
     return this.http
       .post<Project>(`${this.baseUrl}/v3/projects`, payload, {
         headers: this.getHeaders(),
+        withCredentials: true,
       })
       .pipe(catchError(this.handleError));
   }

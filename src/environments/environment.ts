@@ -1,5 +1,5 @@
 export const environment = {
   production: false,
-  phraseApiBaseUrl: 'https://cloud.memsource.com/web/api2',
+  phraseApiBaseUrl: '/api',
   phraseApiToken: '', // Loaded from settings page or localStorage
 };
