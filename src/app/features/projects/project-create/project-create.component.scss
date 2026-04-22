@@ -1,0 +1,44 @@
+/* Styles handled by Tailwind CSS */
+      box-shadow: 0 4px 8px rgba(92, 107, 192, 0.2);
+    }
+  }
+
+  &.btn-secondary {
+    background: white;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+
+    &:hover:not(:disabled) {
+      background: var(--background-secondary);
+    }
+  }
+}
+
+.info-card {
+  background: var(--background-secondary);
+  border-radius: 8px;
+  padding: 1.5rem;
+  height: fit-content;
+  border-left: 4px solid var(--primary-color);
+
+  h4 {
+    margin: 0 0 1rem;
+    color: var(--text-primary);
+    font-size: 1rem;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: var(--text-secondary);
+    line-height: 1.8;
+
+    li {
+      margin-bottom: 0.75rem;
+
+      strong {
+        color: var(--text-primary);
+      }
+    }
+  }
+}
