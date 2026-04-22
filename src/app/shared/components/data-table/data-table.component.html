@@ -1,0 +1,23 @@
+<div class="table-container">
+    <div *ngIf="loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <table *ngIf="!loading && data.length > 0" class="data-table">
+        <thead>
+            <tr>
+                <th *ngFor="let column of columns">{{ column.label }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr *ngFor="let row of data">
+                <td *ngFor="let column of columns">{{ getCellValue(row, column) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div *ngIf="!loading && data.length === 0" class="empty-state">
+        <p>{{ emptyMessage }}</p>
+    </div>
+</div>

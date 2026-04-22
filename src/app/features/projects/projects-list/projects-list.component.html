@@ -1,0 +1,25 @@
+<app-header>Projects</app-header>
+
+<div class="projects-container">
+    <div class="toolbar">
+        <h3>All Projects</h3>
+        <div class="toolbar-actions">
+            <button class="btn btn-secondary" (click)="refresh()" [disabled]="loading">
+                🔄 Refresh
+            </button>
+            <a routerLink="/projects/create" class="btn btn-primary">
+                ➕ Create New Project
+            </a>
+        </div>
+    </div>
+
+    <div *ngIf="error" class="error-banner">
+        <strong>Error loading projects:</strong> {{ error }}
+        <button class="btn-close" (click)="error = null">×</button>
+    </div>
+
+    <div class="projects-table">
+        <app-data-table [columns]="columns" [data]="projects" [loading]="loading"
+            emptyMessage="No projects found. Create your first project to get started."></app-data-table>
+    </div>
+</div>

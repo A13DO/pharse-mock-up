@@ -1,0 +1,20 @@
+<div class="form-field">
+    <label [class.required]="required">
+        {{ label }}
+    </label>
+
+    <input *ngIf="type !== 'textarea' && type !== 'checkbox'" [type]="type" [formControl]="control"
+        [placeholder]="placeholder" [class.error]="showError" />
+
+    <textarea *ngIf="type === 'textarea'" [formControl]="control" [placeholder]="placeholder" [class.error]="showError"
+        rows="4"></textarea>
+
+    <div *ngIf="type === 'checkbox'" class="checkbox-wrapper">
+        <input type="checkbox" [formControl]="control" [id]="label" />
+        <label [for]="label" class="checkbox-label">{{ placeholder || label }}</label>
+    </div>
+
+    <div *ngIf="showError" class="error-message">
+        {{ errorMessage }}
+    </div>
+</div>

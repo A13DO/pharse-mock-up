@@ -1,0 +1,38 @@
+.header {
+  background: white;
+  border-bottom: 1px solid var(--border-color);
+  padding: 1.5rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.75rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  .date {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+}

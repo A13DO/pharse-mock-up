@@ -1,0 +1,57 @@
+<app-header>Settings</app-header>
+
+<div class="settings-container">
+    <div class="settings-card">
+        <h3>Phrase TMS API Configuration</h3>
+        <p class="description">
+            Enter your Phrase API token to authenticate requests. You can generate a token from your Phrase account
+            settings.
+        </p>
+
+        <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()">
+            <div class="form-group">
+                <label for="apiToken">API Token <span class="required">*</span></label>
+                <div class="token-input-wrapper">
+                    <input id="apiToken" [type]="showToken ? 'text' : 'password'" formControlName="apiToken"
+                        placeholder="Enter your Phrase API token"
+                        [class.error]="settingsForm.get('apiToken')?.invalid && settingsForm.get('apiToken')?.touched" />
+                    <button type="button" class="toggle-visibility" (click)="toggleTokenVisibility()"
+                        [title]="showToken ? 'Hide token' : 'Show token'">
+                        {{ showToken ? '🙈' : '👁️' }}
+                    </button>
+                </div>
+                <div *ngIf="settingsForm.get('apiToken')?.invalid && settingsForm.get('apiToken')?.touched"
+                    class="error-message">
+                    API Token is required
+                </div>
+            </div>
+
+            <div *ngIf="saveSuccess" class="success-message">
+                ✓ API Token saved successfully!
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn btn-primary" [disabled]="settingsForm.invalid">
+                    Save Token
+                </button>
+                <button type="button" class="btn btn-secondary" (click)="clearToken()"
+                    [disabled]="!settingsForm.value.apiToken">
+                    Clear Token
+                </button>
+            </div>
+        </form>
+
+        <div class="info-box">
+            <strong>ℹ️ How to get your JWT token (Recommended):</strong>
+            <ol>
+                <li>Log in to your Phrase account at <a href="https://cloud.memsource.com"
+                        target="_blank">cloud.memsource.com</a></li>
+                <li>Go to <strong>Settings → Access & Security → Access Tokens</strong></li>
+                <li>Click <strong>Generate New Token</strong></li>
+                <li>Copy the JWT token</li>
+                <li>Paste it in the field above</li>
+            </ol>
+            <p class="note">💡 This works even if you signed up with Google/Gmail (no password needed!)</p>
+        </div>
+    </div>
+</div>

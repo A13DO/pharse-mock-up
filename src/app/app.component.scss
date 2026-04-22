@@ -1,0 +1,15 @@
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  background: var(--background-main);
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 260px;
+  min-height: 100vh;
+
+  @media (max-width: 768px) {
+    margin-left: 0;
+  }
+}

@@ -1,1 +1,152 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global Styles - Phrase TMS API Client */
+
+/* CSS Custom Properties (Variables) */
+:root {
+  /* Colors */
+  --primary-color: #5c6bc0;
+  --primary-dark: #3f51b5;
+  --primary-light: #e8eaf6;
+
+  --text-primary: #212121;
+  --text-secondary: #757575;
+
+  --background-main: #f5f5f5;
+  --background-secondary: #fafafa;
+  --background-alt: #f9f9f9;
+  --background-hover: #f0f0f0;
+
+  --sidebar-bg: #ffffff;
+
+  --border-color: #e0e0e0;
+
+  --error-color: #ef5350;
+  --success-color: #66bb6a;
+  --warning-color: #ffa726;
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* CSS Reset & Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--background-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Utility Classes */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.mt-1 {
+  margin-top: var(--spacing-sm);
+}
+.mt-2 {
+  margin-top: var(--spacing-md);
+}
+.mt-3 {
+  margin-top: var(--spacing-lg);
+}
+
+.mb-1 {
+  margin-bottom: var(--spacing-sm);
+}
+.mb-2 {
+  margin-bottom: var(--spacing-md);
+}
+.mb-3 {
+  margin-bottom: var(--spacing-lg);
+}
+
+.p-1 {
+  padding: var(--spacing-sm);
+}
+.p-2 {
+  padding: var(--spacing-md);
+}
+.p-3 {
+  padding: var(--spacing-lg);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--text-secondary);
+  }
+}

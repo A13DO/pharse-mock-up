@@ -1,0 +1,17 @@
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <h1>Phrase TMS</h1>
+        <p class="subtitle">API Client</p>
+    </div>
+
+    <div *ngIf="!hasToken" class="warning-banner">
+        ⚠️ No API token set
+    </div>
+
+    <nav class="sidebar-nav">
+        <a *ngFor="let item of menuItems" [routerLink]="item.path" routerLinkActive="active" class="nav-item">
+            <span class="icon">{{ item.icon }}</span>
+            <span class="label">{{ item.label }}</span>
+        </a>
+    </nav>
+</aside>

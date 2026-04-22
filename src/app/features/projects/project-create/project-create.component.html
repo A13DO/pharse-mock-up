@@ -1,0 +1,64 @@
+<app-header>Create New Project</app-header>
+
+<div class="create-container">
+    <div class="form-card">
+        <div *ngIf="error" class="error-banner">
+            <strong>Error creating project:</strong> {{ error }}
+            <button class="btn-close" (click)="error = null">×</button>
+        </div>
+
+        <form [formGroup]="projectForm" (ngSubmit)="onSubmit()">
+            <div class="form-section">
+                <h3>Basic Information</h3>
+
+                <app-form-field label="Project Name" [control]="getControl('name')" type="text"
+                    placeholder="Enter project name" [required]="true"></app-form-field>
+
+                <app-form-field label="Source Language" [control]="getControl('sourceLang')" type="text"
+                    placeholder="e.g., en, de, fr" [required]="true" [errorMessages]="{
+            required: 'Source language is required (e.g., en)'
+          }"></app-form-field>
+
+                <app-form-field label="Target Languages" [control]="getControl('targetLangs')" type="text"
+                    placeholder="Comma-separated (e.g., de, fr, es)" [required]="true" [errorMessages]="{
+            required: 'At least one target language is required'
+          }"></app-form-field>
+            </div>
+
+            <div class="form-section">
+                <h3>Additional Details</h3>
+
+                <app-form-field label="Purchase Order" [control]="getControl('purchaseOrder')" type="text"
+                    placeholder="Enter purchase order number (optional)"></app-form-field>
+
+                <app-form-field label="Due Date" [control]="getControl('dateDue')"
+                    type="datetime-local"></app-form-field>
+
+                <app-form-field label="Note" [control]="getControl('note')" type="textarea"
+                    placeholder="Add any notes or comments about this project"></app-form-field>
+
+                <app-form-field label="File Handover" [control]="getControl('fileHandover')" type="checkbox"
+                    placeholder="Enable file handover for this project"></app-form-field>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" (click)="cancel()" [disabled]="submitting">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary" [disabled]="submitting">
+                    {{ submitting ? 'Creating...' : 'Create Project' }}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="info-card">
+        <h4>💡 Tips</h4>
+        <ul>
+            <li><strong>Language codes:</strong> Use ISO 639-1 codes (e.g., en, de, fr)</li>
+            <li><strong>Target languages:</strong> Separate multiple languages with commas</li>
+            <li><strong>Due date:</strong> Select both date and time for accurate scheduling</li>
+            <li><strong>File handover:</strong> Enable to automatically deliver completed files</li>
+        </ul>
+    </div>
+</div>
