@@ -1,18 +1,4 @@
 /* Styles handled by Tailwind CSS */
-      box-shadow: 0 4px 8px rgba(92, 107, 192, 0.2);
-    }
-  }
-
-  &.btn-secondary {
-    background: white;
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-
-    &:hover:not(:disabled) {
-      background: var(--background-secondary);
-    }
-  }
-}
 
 .info-card {
   background: var(--background-secondary);
