@@ -27,7 +27,8 @@
     </div>
 
     <div>
-        <app-data-table [columns]="columns" [data]="projects" [loading]="loading"
+        <app-data-table [columns]="columns" [tableData]="projects" [loading]="loading" [totalRecords]="projects.length"
+            (viewRow)="onViewProject($event)"
             emptyMessage="No projects found. Create your first project to get started."></app-data-table>
     </div>
 </div>

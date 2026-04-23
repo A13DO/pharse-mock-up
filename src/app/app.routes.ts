@@ -17,6 +17,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'projects/:uid',
+    loadComponent: () =>
+      import('./features/projects/project-detail/project-detail.component').then(
+        (m) => m.ProjectDetailComponent,
+      ),
+  },
+  {
     path: 'settings',
     loadComponent: () =>
       import('./features/settings/settings.component').then(

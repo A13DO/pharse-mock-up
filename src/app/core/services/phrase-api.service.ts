@@ -27,6 +27,47 @@ export interface Project {
   };
 }
 
+export interface ProjectDetail extends Project {
+  internalId: number;
+  id: string;
+  dateCreated: string;
+  domain?: { id: string; uid: string; name: string };
+  subDomain?: { id: string; uid: string; name: string };
+  owner?: {
+    firstName: string;
+    lastName: string;
+    userName: string;
+    email: string;
+    role: string;
+    id: string;
+    uid: string;
+  };
+  targetLangs: string[];
+  references: Array<{
+    id: string;
+    uid: string;
+    filename: string;
+    note?: string;
+    dateCreated: string;
+    createdBy?: {
+      firstName: string;
+      lastName: string;
+      userName: string;
+      email: string;
+    };
+  }>;
+  mtSettingsPerLanguageList: Array<{
+    targetLang?: string;
+    machineTranslateSettings: {
+      id: string;
+      uid: string;
+      name: string;
+      type: string;
+    };
+  }>;
+  userRole: string;
+}
+
 export interface ProjectsResponse {
   content: Project[];
   totalElements: number;
@@ -52,6 +93,15 @@ export class PhraseApiService {
   getProjects(): Observable<ProjectsResponse> {
     return this.http
       .get<ProjectsResponse>(`${this.baseUrl}/v1/projects`, {
+        headers: this.getHeaders(),
+        withCredentials: true,
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  getProject(projectUid: string): Observable<ProjectDetail> {
+    return this.http
+      .get<ProjectDetail>(`${this.baseUrl}/v1/projects/${projectUid}`, {
         headers: this.getHeaders(),
         withCredentials: true,
       })

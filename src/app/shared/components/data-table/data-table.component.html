@@ -1,29 +1,55 @@
-<div class="relative w-full overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-    <div *ngIf="loading" class="flex flex-col items-center justify-center p-12 gap-4">
-        <div class="w-10 h-10 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin"></div>
-        <p class="text-gray-500 text-sm">Loading...</p>
-    </div>
-
-    <table *ngIf="!loading && data.length > 0" class="w-full">
-        <thead class="bg-gray-50 border-b border-gray-200">
-            <tr>
-                <th *ngFor="let column of columns"
-                    class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    {{ column.label }}
+<!-- Table -->
+<div class="m-10">
+    <p-table #dt [value]="tableData" [responsiveLayout]="'scroll'" [loading]="loading" class="w-full text-sm">
+        <ng-template pTemplate="header">
+            <tr class="text-[12px] font-medium leading-[120%] p-datatable-sortable-column text-nowrap">
+                <th><p-tableHeaderCheckbox></p-tableHeaderCheckbox></th>
+                <th *ngFor="let col of columns"
+                    [pSortableColumn]="col.sortable !== false ? getFieldName(col) : undefined"
+                    [pSortableColumnDisabled]="col.sortable === false" class="px-4 py-3 text-left">
+                    <ng-container *ngIf="getFieldName(col) !== 'actions'; else noSort">
+                        <span>
+                            {{ getHeaderName(col) }}
+                            <p-sortIcon [field]="getFieldName(col)" *ngIf="col.sortable !== false"></p-sortIcon>
+                        </span>
+                    </ng-container>
+                    <ng-template #noSort>
+                        {{ getHeaderName(col) }}
+                    </ng-template>
                 </th>
             </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-200">
-            <tr *ngFor="let row of data" class="hover:bg-gray-50 transition-colors duration-150">
-                <td *ngFor="let column of columns" class="px-6 py-4 text-sm text-gray-900">
-                    {{ getCellValue(row, column) }}
+        </ng-template>
+
+        <ng-template pTemplate="body" let-row>
+            <tr class="hover:bg-light-hover cursor-pointer transition">
+                <td class="px-4 py-2" (click)="$event.stopPropagation()">
+                    <p-tableCheckbox [value]="row"></p-tableCheckbox>
+                </td>
+
+                <td *ngFor="let col of columns" class="text-nowrap">
+                    @switch (getFieldName(col)) {
+                    @case('actions') {
+                    <div class="flex flex-row items-center gap-3">
+                        <p-button label="View" variant="outlined" severity="help" styleClass="!text-sm"
+                            (click)="onViewClick(row)"></p-button>
+                    </div>
+                    } @default {
+                    <p>{{ getCellValue(row, col) }}</p>
+                    } }
                 </td>
             </tr>
-        </tbody>
-    </table>
+        </ng-template>
 
-    <div *ngIf="!loading && data.length === 0" class="p-12 text-center">
-        <div class="text-gray-400 text-5xl mb-4">📁</div>
-        <p class="text-gray-500 text-base">{{ emptyMessage }}</p>
-    </div>
+        <ng-template pTemplate="emptymessage">
+            <tr>
+                <td [attr.colspan]="columns.length + 1" class="text-center p-6">
+                    <div class="text-gray-400 text-5xl mb-4">📁</div>
+                    <p class="text-gray-500">{{ emptyMessage }}</p>
+                </td>
+            </tr>
+        </ng-template>
+    </p-table>
+
+    <p-paginator [rows]="rowsPerPage" [totalRecords]="totalRecords" [pageLinkSize]="5"
+        [rowsPerPageOptions]="[10, 20, 50, 100]" (onPageChange)="onPageChange($event)" styleClass="mt-4"></p-paginator>
 </div>

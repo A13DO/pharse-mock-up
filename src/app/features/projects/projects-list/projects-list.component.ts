@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import {
   PhraseApiService,
   Project,
@@ -20,6 +20,7 @@ import { HeaderComponent } from '../../../layout/header/header.component';
 })
 export class ProjectsListComponent implements OnInit {
   private phraseApi = inject(PhraseApiService);
+  private router = inject(Router);
 
   projects: Project[] = [];
   loading = false;
@@ -40,6 +41,7 @@ export class ProjectsListComponent implements OnInit {
       key: 'createdBy.userName',
       label: 'Created By',
     },
+    { key: 'actions', label: 'Actions', sortable: false },
   ];
 
   ngOnInit(): void {
@@ -61,6 +63,10 @@ export class ProjectsListComponent implements OnInit {
         console.error('Failed to load projects:', err);
       },
     });
+  }
+
+  onViewProject(project: Project): void {
+    this.router.navigate(['/projects', project.uid]);
   }
 
   refresh(): void {
