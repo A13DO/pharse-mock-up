@@ -1,1 +1,5 @@
-/* /index.html 200
+# API Proxy to Memsource
+/api/*  https://cloud.memsource.com/web/api2/:splat  200
+
+# Angular SPA fallback - must be last
+/*  /index.html  200
