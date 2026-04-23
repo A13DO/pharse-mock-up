@@ -1,26 +1,16 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CommonModule, formatDate } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   PhraseApiService,
   ProjectDetail,
 } from '../../../core/services/phrase-api.service';
 import { HeaderComponent } from '../../../layout/header/header.component';
-import { CardModule } from 'primeng/card';
-import { TabViewModule } from 'primeng/tabview';
-import { TagModule } from 'primeng/tag';
 
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule,
-    HeaderComponent,
-    CardModule,
-    TabViewModule,
-    TagModule,
-  ],
+  imports: [CommonModule, RouterModule, HeaderComponent],
   templateUrl: './project-detail.component.html',
   styleUrl: './project-detail.component.scss',
 })
