@@ -1,11 +1,11 @@
 <app-header>Create Job</app-header>
 
-<div class="p-8 max-w-4xl mx-auto">
-    <div class="flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Create New Job</h1>
+<div class="p-6 max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Create New Job</h1>
         <button routerLink="/projects"
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 py-2 px-4">
-            Back to Projects
+            class="h-9 px-3 inline-flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors border border-slate-300 bg-white hover:bg-slate-50">
+            <i class="pi pi-arrow-left text-xs"></i> Back to Projects
         </button>
     </div>
 
@@ -23,15 +23,15 @@
         <div class="space-y-6">
             <p-card styleClass="shadow-sm">
                 <ng-template pTemplate="header">
-                    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 -m-6 mb-4">
-                        <h2 class="text-lg font-semibold text-gray-900">Job Details</h2>
+                    <div class="bg-slate-50 px-4 py-3 -m-6 mb-4 border-b border-slate-200">
+                        <h2 class="text-sm font-semibold text-gray-900">Job Details</h2>
                     </div>
                 </ng-template>
 
-                <div class="space-y-4">
+                <div class="space-y-3">
                     <!-- File Upload -->
-                    <div class="flex flex-col gap-2">
-                        <label class="font-semibold text-gray-700">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-sm font-medium text-gray-700">
                             Source File <span class="text-red-500">*</span>
                         </label>
                         <p-fileUpload mode="basic" chooseLabel="Choose File" [auto]="false" [maxFileSize]="50000000"
@@ -43,8 +43,8 @@
                     </div>
 
                     <!-- Filename -->
-                    <div class="flex flex-col gap-2">
-                        <label for="filename" class="font-semibold text-gray-700">
+                    <div class="flex flex-col gap-1.5">
+                        <label for="filename" class="text-sm font-medium text-gray-700">
                             Filename <span class="text-red-500">*</span>
                         </label>
                         <input pInputText id="filename" [(ngModel)]="form.filename" placeholder="e.g., document.docx"
@@ -53,8 +53,8 @@
                     </div>
 
                     <!-- Target Languages -->
-                    <div class="flex flex-col gap-2">
-                        <label for="targetLangs" class="font-semibold text-gray-700">
+                    <div class="flex flex-col gap-1.5">
+                        <label for="targetLangs" class="text-sm font-medium text-gray-700">
                             Target Languages <span class="text-red-500">*</span>
                         </label>
                         <p-multiSelect [options]="availableLanguages" [(ngModel)]="form.targetLangs"
@@ -66,15 +66,15 @@
             </p-card>
 
             <!-- Action Buttons -->
-            <div class="flex gap-3">
+            <div class="flex gap-2">
                 <button (click)="onSubmit()" [disabled]="!isFormValid() || loading"
-                    class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none bg-slate-900 text-white hover:bg-slate-800 h-10 py-2 px-4">
+                    class="flex-1 h-9 px-4 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none bg-slate-900 text-white hover:bg-slate-800">
                     <span *ngIf="loading"
-                        class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                        class="mr-1.5 h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
                     {{ loading ? 'Creating...' : 'Create Job' }}
                 </button>
                 <button (click)="reset()" [disabled]="loading"
-                    class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none border border-slate-200 bg-white hover:bg-slate-100 hover:text-slate-900 h-10 py-2 px-4">
+                    class="h-9 px-4 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none border border-slate-300 bg-white hover:bg-slate-50">
                     Reset
                 </button>
             </div>
@@ -85,8 +85,8 @@
             <!-- Memsource Header Preview -->
             <p-card styleClass="shadow-sm">
                 <ng-template pTemplate="header">
-                    <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-4 -m-6 mb-4">
-                        <h2 class="text-lg font-semibold text-gray-900">Memsource Header Preview</h2>
+                    <div class="bg-slate-50 px-4 py-3 -m-6 mb-4 border-b border-slate-200">
+                        <h2 class="text-sm font-semibold text-gray-900">Memsource Header Preview</h2>
                     </div>
                 </ng-template>
 

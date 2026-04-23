@@ -14,9 +14,9 @@ export class SidebarComponent {
   private authService = inject(AuthService);
 
   menuItems = [
-    { path: '/projects', label: 'Projects', icon: '📁' },
-    { path: '/projects/create', label: 'Create Project', icon: '➕' },
-    { path: '/settings', label: 'Settings', icon: '⚙️' },
+    { path: '/projects', label: 'Projects', icon: 'pi pi-folder' },
+    { path: '/projects/create', label: 'Create Project', icon: 'pi pi-plus' },
+    { path: '/settings', label: 'Settings', icon: 'pi pi-cog' },
   ];
 
   get hasToken(): boolean {

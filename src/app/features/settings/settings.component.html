@@ -1,28 +1,28 @@
 <app-header>Settings</app-header>
 
-<div class="p-8 max-w-4xl mx-auto">
-    <div class="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
-        <div class="mb-8">
-            <h3 class="text-2xl font-bold text-gray-900 mb-2">Phrase TMS API Configuration</h3>
-            <p class="text-gray-600 leading-relaxed">
+<div class="p-6 max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+        <div class="mb-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-2">Phrase TMS API Configuration</h3>
+            <p class="text-sm text-gray-600">
                 Enter your Phrase API token to authenticate requests. You can generate a token from your Phrase account
                 settings.
             </p>
         </div>
 
         <form [formGroup]="settingsForm" (ngSubmit)="onSubmit()">
-            <div class="mb-6">
-                <label for="apiToken" class="block mb-2 font-medium text-gray-900 text-sm">
+            <div class="mb-4">
+                <label for="apiToken" class="block mb-1.5 font-medium text-gray-900 text-sm">
                     API Token <span class="text-red-500">*</span>
                 </label>
                 <div class="flex gap-2">
                     <input id="apiToken" [type]="showToken ? 'text' : 'password'" formControlName="apiToken"
                         placeholder="Enter your Phrase API token"
-                        [class]="'flex-1 px-4 py-3 border rounded-lg text-sm font-mono transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent ' + (settingsForm.get('apiToken')?.invalid && settingsForm.get('apiToken')?.touched ? 'border-red-500 focus:ring-red-500' : 'border-gray-300')" />
+                        [class]="'flex-1 h-9 px-3 border rounded-md text-sm font-mono transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent ' + (settingsForm.get('apiToken')?.invalid && settingsForm.get('apiToken')?.touched ? 'border-red-500 focus:ring-red-500' : 'border-slate-300')" />
                     <button type="button"
-                        class="px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg cursor-pointer text-xl transition-all duration-200 hover:bg-gray-100 active:scale-95"
+                        class="h-9 px-3 bg-slate-50 border border-slate-300 rounded-md cursor-pointer text-sm transition-colors hover:bg-slate-100"
                         (click)="toggleTokenVisibility()" [title]="showToken ? 'Hide token' : 'Show token'">
-                        {{ showToken ? '🙈' : '👁️' }}
+                        <i [class]="showToken ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
                     </button>
                 </div>
                 <div *ngIf="settingsForm.get('apiToken')?.invalid && settingsForm.get('apiToken')?.touched"
@@ -32,30 +32,30 @@
             </div>
 
             <div *ngIf="saveSuccess"
-                class="mb-6 px-6 py-4 bg-green-50 border border-green-200 text-green-800 rounded-lg flex items-center gap-2">
-                <span class="text-lg">✓</span> API Token saved successfully!
+                class="mb-4 px-4 py-2.5 bg-green-50 border border-green-200 text-green-800 rounded-md flex items-center gap-2 text-sm">
+                <i class="pi pi-check"></i> API Token saved successfully!
             </div>
 
-            <div class="flex gap-4">
+            <div class="flex gap-2">
                 <button type="submit"
-                    class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="h-9 px-4 bg-slate-900 text-white rounded-md font-medium text-sm transition-colors hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     [disabled]="settingsForm.invalid">
                     Save Token
                 </button>
                 <button type="button"
-                    class="px-6 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg font-medium text-sm transition-all duration-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="h-9 px-4 bg-white text-slate-700 border border-slate-300 rounded-md font-medium text-sm transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     (click)="clearToken()" [disabled]="!settingsForm.value.apiToken">
                     Clear Token
                 </button>
             </div>
         </form>
 
-        <div class="mt-8 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-            <div class="flex items-start gap-3 mb-4">
-                <span class="text-2xl">ℹ️</span>
-                <strong class="text-gray-900 text-base">How to get your JWT token (Recommended):</strong>
+        <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div class="flex items-start gap-2 mb-3">
+                <i class="pi pi-info-circle text-blue-600"></i>
+                <strong class="text-gray-900 text-sm">How to get your JWT token (Recommended):</strong>
             </div>
-            <ol class="space-y-3 text-sm text-gray-700 pl-6">
+            <ol class="space-y-2 text-xs text-gray-700 pl-5">
                 <li class="leading-relaxed">Log in to your Phrase account at <a href="https://cloud.memsource.com"
                         target="_blank" class="text-indigo-600 hover:underline font-medium">cloud.memsource.com</a></li>
                 <li class="leading-relaxed">Go to <strong class="text-gray-900">Settings → Access & Security → Access

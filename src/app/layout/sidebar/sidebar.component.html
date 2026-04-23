@@ -1,13 +1,13 @@
 <aside class="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-50">
     <div class="px-6 py-8 border-b border-gray-200">
-        <h1 class="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+        <h1 class="text-2xl font-bold text-slate-900">
             Phrase TMS</h1>
         <p class="text-sm text-gray-500 mt-1">API Client</p>
     </div>
 
     <div *ngIf="!hasToken"
         class="bg-amber-50 text-amber-800 px-6 py-3 text-sm border-b border-amber-200 flex items-center gap-2">
-        <span class="text-lg">⚠️</span>
+        <i class="pi pi-exclamation-triangle"></i>
         <span>No API token set</span>
     </div>
 
@@ -15,7 +15,7 @@
         <a *ngFor="let item of menuItems" [routerLink]="item.path"
             routerLinkActive="bg-indigo-50 text-indigo-600 border-l-4 border-indigo-600 font-semibold"
             class="flex items-center gap-3 px-6 py-3 text-gray-700 no-underline transition-all duration-200 hover:bg-gray-50 hover:text-indigo-600 border-l-4 border-transparent">
-            <span class="text-xl w-6 text-center">{{ item.icon }}</span>
+            <i [class]="item.icon + ' text-lg w-6 text-center'"></i>
             <span class="text-sm">{{ item.label }}</span>
         </a>
     </nav>
