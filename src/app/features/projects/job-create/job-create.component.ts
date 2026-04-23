@@ -9,6 +9,7 @@ import { MultiSelectModule } from 'primeng/multiselect';
 import { InputTextModule } from 'primeng/inputtext';
 import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
+import { ChipsModule } from 'primeng/chips';
 
 interface CreateJobForm {
   filename: string;
@@ -29,6 +30,7 @@ interface CreateJobForm {
     InputTextModule,
     CardModule,
     MessageModule,
+    ChipsModule,
   ],
   templateUrl: './job-create.component.html',
   styleUrl: './job-create.component.scss',
@@ -39,26 +41,18 @@ export class JobCreateComponent implements OnInit {
   private router = inject(Router);
 
   projectUid: string = '';
+  projectSourceLang: string = '';
+  projectTargetLangs: string[] = [];
+  loadingProject = false;
+
   form: CreateJobForm = {
     filename: '',
     targetLangs: [],
     file: null,
   };
 
-  availableLanguages = [
-    { label: 'German', value: 'de' },
-    { label: 'French', value: 'fr' },
-    { label: 'Spanish', value: 'es' },
-    { label: 'Italian', value: 'it' },
-    { label: 'Czech', value: 'cs_cz' },
-    { label: 'Polish', value: 'pl' },
-    { label: 'Dutch', value: 'nl' },
-    { label: 'Portuguese', value: 'pt' },
-    { label: 'Russian', value: 'ru' },
-    { label: 'Chinese (Simplified)', value: 'zh_cn' },
-    { label: 'Japanese', value: 'ja' },
-    { label: 'Arabic', value: 'ar' },
-  ];
+  availableLanguages: { label: string; value: string }[] = [];
+  allLanguages: { label: string; value: string }[] = [];
 
   loading = false;
   error: string | null = null;
@@ -70,15 +64,88 @@ export class JobCreateComponent implements OnInit {
     const projectUid = this.route.snapshot.queryParamMap.get('projectUid');
     if (projectUid) {
       this.projectUid = projectUid;
+      this.loadLanguages();
+      this.loadProjectDetails();
     }
+  }
+
+  loadLanguages(): void {
+    this.phraseApi.getLanguages().subscribe({
+      next: (response) => {
+        this.allLanguages = response.languages.map((lang) => ({
+          label: lang.name,
+          value: lang.code,
+        }));
+      },
+      error: (err) => {
+        console.error('Failed to load languages:', err);
+        // // Fallback to hardcoded list
+        // this.allLanguages = [
+        //   { label: 'German', value: 'de' },
+        //   { label: 'French', value: 'fr' },
+        //   { label: 'Spanish', value: 'es' },
+        //   { label: 'Italian', value: 'it' },
+        //   { label: 'Czech', value: 'cs_cz' },
+        //   { label: 'Polish', value: 'pl' },
+        //   { label: 'Dutch', value: 'nl' },
+        //   { label: 'Portuguese', value: 'pt' },
+        //   { label: 'Russian', value: 'ru' },
+        //   { label: 'Chinese (Simplified)', value: 'zh_cn' },
+        //   { label: 'Japanese', value: 'ja' },
+        //   { label: 'Arabic', value: 'ar' },
+        // ];
+      },
+    });
+  }
+
+  loadProjectDetails(): void {
+    this.loadingProject = true;
+    this.error = null;
+
+    this.phraseApi.getProject(this.projectUid).subscribe({
+      next: (project) => {
+        this.projectSourceLang = project.sourceLang;
+        this.projectTargetLangs = project.targetLangs || [];
+        // Pre-populate target languages in the form
+        this.form.targetLangs = [...this.projectTargetLangs];
+        this.loadingProject = false;
+      },
+      error: (err) => {
+        this.error = 'Failed to load project details';
+        this.loadingProject = false;
+        console.error('Failed to load project:', err);
+      },
+    });
   }
 
   get memsourceHeaderPreview(): string {
     const headerObj = {
-      targetLangs: this.form.targetLangs.length > 0 ? this.form.targetLangs : [],
+      targetLangs:
+        this.form.targetLangs.length > 0 ? this.form.targetLangs : [],
     };
 
     return JSON.stringify(headerObj, null, 2);
+  }
+
+  get filteredAvailableLanguages() {
+    // Return only languages that match the project's target languages
+    if (
+      this.projectTargetLangs.length === 0 ||
+      this.allLanguages.length === 0
+    ) {
+      return this.allLanguages;
+    }
+
+    const filtered = this.allLanguages.filter((lang) =>
+      this.projectTargetLangs.includes(lang.value),
+    );
+
+    // If no matches found, show all languages as fallback
+    return filtered.length > 0 ? filtered : this.allLanguages;
+  }
+
+  getLanguageLabel(code: string): string {
+    return this.allLanguages.find((lang) => lang.value === code)?.label || code;
   }
 
   onFileSelect(event: any): void {
@@ -140,7 +207,7 @@ export class JobCreateComponent implements OnInit {
   reset(): void {
     this.form = {
       filename: '',
-      targetLangs: [],
+      targetLangs: [...this.projectTargetLangs], // Keep project's target languages
       file: null,
     };
     this.error = null;
