@@ -1,5 +1,5 @@
 [build]
-  publish = "dist/pharse-mock-up"
+  publish = "dist/pharse-mock-up/browser"
   command = "npm run build"
 
 [[redirects]]
