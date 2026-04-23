@@ -11,9 +11,12 @@ import { Router } from '@angular/router';
 import {
   PhraseApiService,
   CreateProjectDto,
+  Language,
 } from '../../../core/services/phrase-api.service';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { HeaderComponent } from '../../../layout/header/header.component';
+import { DropdownModule } from 'primeng/dropdown';
+import { MultiSelectModule } from 'primeng/multiselect';
 
 @Component({
   selector: 'app-project-create',
@@ -23,6 +26,8 @@ import { HeaderComponent } from '../../../layout/header/header.component';
     ReactiveFormsModule,
     FormFieldComponent,
     HeaderComponent,
+    DropdownModule,
+    MultiSelectModule,
   ],
   templateUrl: './project-create.component.html',
   styleUrl: './project-create.component.scss',
@@ -36,15 +41,39 @@ export class ProjectCreateComponent implements OnInit {
   submitting = false;
   error: string | null = null;
 
+  languages: Language[] = [];
+  loadingLanguages = false;
+  languageError: string | null = null;
+
   ngOnInit(): void {
     this.projectForm = this.fb.group({
       name: ['', Validators.required],
-      sourceLang: ['', Validators.required],
-      targetLangs: ['', Validators.required],
+      sourceLang: [null, Validators.required],
+      targetLangs: [[], Validators.required],
       purchaseOrder: [''],
       dateDue: [''],
       note: [''],
       fileHandover: [false],
+    });
+
+    this.loadLanguages();
+  }
+
+  loadLanguages(): void {
+    this.loadingLanguages = true;
+    this.languageError = null;
+
+    this.phraseApi.getLanguages().subscribe({
+      next: (response) => {
+        this.languages = response.languages;
+        this.loadingLanguages = false;
+      },
+      error: (err) => {
+        this.languageError =
+          'Failed to load languages. Using manual input as fallback.';
+        this.loadingLanguages = false;
+        console.error('Failed to load languages:', err);
+      },
     });
   }
 
@@ -63,16 +92,17 @@ export class ProjectCreateComponent implements OnInit {
 
     const formValue = this.projectForm.value;
 
-    // Convert comma-separated target languages to array
-    const targetLangsArray = formValue.targetLangs
-      .split(',')
-      .map((lang: string) => lang.trim())
-      .filter((lang: string) => lang.length > 0);
+    // Extract language codes from selected Language objects
+    const sourceLangCode = formValue.sourceLang?.code || formValue.sourceLang;
+    const targetLangCodes = formValue.targetLangs.map(
+      (lang: Language | string) =>
+        typeof lang === 'string' ? lang : lang.code,
+    );
 
     const payload: CreateProjectDto = {
       name: formValue.name,
-      sourceLang: formValue.sourceLang,
-      targetLangs: targetLangsArray,
+      sourceLang: sourceLangCode,
+      targetLangs: targetLangCodes,
       purchaseOrder: formValue.purchaseOrder || undefined,
       note: formValue.note || undefined,
       fileHandover: formValue.fileHandover,

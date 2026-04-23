@@ -74,6 +74,18 @@ export interface ProjectsResponse {
   totalPages: number;
 }
 
+export interface Language {
+  code: string;
+  name: string;
+  rfc: string;
+  android: string;
+  androidBcp: string;
+}
+
+export interface LanguagesResponse {
+  languages: Language[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -81,6 +93,7 @@ export class PhraseApiService {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
   private baseUrl = environment.phraseApiBaseUrl;
+  private memsourceBaseUrl = '/api/v1';
 
   private getHeaders(): HttpHeaders {
     const token = this.authService.getToken();
@@ -156,6 +169,38 @@ export class PhraseApiService {
 
       reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsArrayBuffer(file);
+    });
+  }
+  /**
+   * Get all available languages from Memsource
+   * @returns Observable of languages response
+   */
+  getLanguages(): Observable<LanguagesResponse> {
+    return this.http
+      .get<LanguagesResponse>(`${this.memsourceBaseUrl}/languages`, {
+        headers: this.getHeaders(),
+        withCredentials: true,
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Get a specific language by code
+   * @param code - Language code (e.g., 'en', 'ar')
+   * @returns Language object if found
+   */
+  getLanguageByCode(code: string): Observable<Language | undefined> {
+    return new Observable((observer) => {
+      this.getLanguages().subscribe({
+        next: (response) => {
+          const language = response.languages.find(
+            (lang) => lang.code.toLowerCase() === code.toLowerCase(),
+          );
+          observer.next(language);
+          observer.complete();
+        },
+        error: (error) => observer.error(error),
+      });
     });
   }
 

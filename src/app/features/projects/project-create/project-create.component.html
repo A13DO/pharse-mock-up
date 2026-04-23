@@ -19,15 +19,58 @@
                 <app-form-field label="Project Name" [control]="getControl('name')" type="text"
                     placeholder="Enter project name" [required]="true"></app-form-field>
 
-                <app-form-field label="Source Language" [control]="getControl('sourceLang')" type="text"
-                    placeholder="e.g., en, de, fr" [required]="true" [errorMessages]="{
-            required: 'Source language is required (e.g., en)'
-          }"></app-form-field>
+                <!-- Source Language Dropdown -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Source Language <span class="text-red-500">*</span>
+                    </label>
+                    <p-dropdown [options]="languages" formControlName="sourceLang" optionLabel="name" [filter]="true"
+                        filterBy="name,code" placeholder="Select source language" [showClear]="true"
+                        [loading]="loadingLanguages" styleClass="w-full"
+                        [class.ng-invalid]="getControl('sourceLang').invalid && getControl('sourceLang').touched">
+                        <ng-template pTemplate="selectedItem" let-language>
+                            <div class="flex items-center gap-2" *ngIf="language">
+                                <span class="font-medium">{{ language.code }}</span>
+                                <span class="text-gray-600">- {{ language.name }}</span>
+                            </div>
+                        </ng-template>
+                        <ng-template pTemplate="item" let-language>
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium">{{ language.code }}</span>
+                                <span class="text-gray-600">- {{ language.name }}</span>
+                            </div>
+                        </ng-template>
+                    </p-dropdown>
+                    <small class="text-red-600 text-xs mt-1 block"
+                        *ngIf="getControl('sourceLang').invalid && getControl('sourceLang').touched">
+                        Source language is required
+                    </small>
+                    <small class="text-amber-600 text-xs mt-1 block" *ngIf="languageError">
+                        {{ languageError }}
+                    </small>
+                </div>
 
-                <app-form-field label="Target Languages" [control]="getControl('targetLangs')" type="text"
-                    placeholder="Comma-separated (e.g., de, fr, es)" [required]="true" [errorMessages]="{
-            required: 'At least one target language is required'
-          }"></app-form-field>
+                <!-- Target Languages MultiSelect -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Target Languages <span class="text-red-500">*</span>
+                    </label>
+                    <p-multiSelect [options]="languages" formControlName="targetLangs" optionLabel="name"
+                        [filter]="true" filterBy="name,code" placeholder="Select target languages" [showClear]="true"
+                        [loading]="loadingLanguages" display="chip" styleClass="w-full"
+                        [class.ng-invalid]="getControl('targetLangs').invalid && getControl('targetLangs').touched">
+                        <ng-template pTemplate="item" let-language>
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium">{{ language.code }}</span>
+                                <span class="text-gray-600">- {{ language.name }}</span>
+                            </div>
+                        </ng-template>
+                    </p-multiSelect>
+                    <small class="text-red-600 text-xs mt-1 block"
+                        *ngIf="getControl('targetLangs').invalid && getControl('targetLangs').touched">
+                        At least one target language is required
+                    </small>
+                </div>
             </div>
 
             <div class="mb-6">
@@ -68,11 +111,13 @@
         <ul class="space-y-2 text-xs text-gray-700 list-none pl-0">
             <li class="flex items-start gap-2">
                 <span class="text-slate-600 font-bold mt-0.5 text-xs">•</span>
-                <div><strong class="text-gray-900">Language codes:</strong> Use ISO 639-1 codes (e.g., en, de, fr)</div>
+                <div><strong class="text-gray-900">Language selection:</strong> Choose from the dropdown list of
+                    available languages</div>
             </li>
             <li class="flex items-start gap-2">
                 <span class="text-slate-600 font-bold mt-0.5 text-xs">•</span>
-                <div><strong class="text-gray-900">Target languages:</strong> Separate multiple languages with commas
+                <div><strong class="text-gray-900">Target languages:</strong> Select multiple languages using the chips
+                    display
                 </div>
             </li>
             <li class="flex items-start gap-2">
