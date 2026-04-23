@@ -13,8 +13,8 @@
 
     <nav class="flex-1 py-4 overflow-y-auto">
         <a *ngFor="let item of menuItems" [routerLink]="item.path"
-            routerLinkActive="bg-indigo-50 text-indigo-600 border-l-4 border-indigo-600 font-semibold"
-            class="flex items-center gap-3 px-6 py-3 text-gray-700 no-underline transition-all duration-200 hover:bg-gray-50 hover:text-indigo-600 border-l-4 border-transparent">
+            routerLinkActive="bg-indigo-50 text-[#0f172b] border-l-4 border-[#0f172b] font-semibold"
+            class="flex items-center gap-3 px-6 py-3 text-gray-700 no-underline transition-all duration-200 hover:bg-gray-50 hover:text-[#0f172b] border-l-4 border-transparent">
             <i [class]="item.icon + ' text-lg w-6 text-center'"></i>
             <span class="text-sm">{{ item.label }}</span>
         </a>

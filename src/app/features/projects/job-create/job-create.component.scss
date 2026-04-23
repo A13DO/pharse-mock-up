@@ -1,5 +1,7 @@
 // Job Create Component Styles
 :host {
+  --p-button-primary-background: #0f172b;
+  --p-button-primary-border-color: #0f172b;
   ::ng-deep {
     .p-fileupload-choose {
       width: 100%;

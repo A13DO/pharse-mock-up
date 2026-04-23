@@ -48,6 +48,19 @@
       }
     }
   }
+
+  .p-button {
+    &.p-button-outlined.p-button-help {
+      color: rgb(14 165 233);
+      border-color: rgb(14 165 233);
+
+      &:hover {
+        background: rgb(226 232 240);
+        border-color: rgb(14 165 233);
+        color: rgb(14 165 233);
+      }
+    }
+  }
 }
 
 :host {

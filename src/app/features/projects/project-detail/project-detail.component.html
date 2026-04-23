@@ -22,12 +22,12 @@
         <!-- Main Content -->
         <div *ngIf="project && !loading">
             <!-- Page Title -->
-            <h1 class="text-4xl font-bold text-[#111] mb-8">{{ project.name }}</h1>
+            <!-- <h1 class="text-4xl font-bold text-[#111] mb-8">{{ project.name }}</h1> -->
 
             <!-- Project Info Card -->
             <div class="bg-white border border-[#e5e7eb] rounded-lg shadow-sm p-8">
                 <!-- Two Column Layout -->
-                <div class="grid grid-cols-2 gap-16">
+                <div class="grid grid-cols-2 gap-8">
                     <!-- Left Column: Basic Info -->
                     <div class="space-y-6">
                         <!-- ID -->
@@ -76,7 +76,7 @@
                         </div>
 
                         <!-- Target Languages -->
-                        <div class="flex items-start">
+                        <div class="flex items-start mt-4">
                             <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4 pt-1">Target
                                 languages</label>
                             <div class="flex flex-wrap gap-1.5 max-w-md">
