@@ -69,21 +69,21 @@
                         <div class="flex items-center">
                             <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">Source
                                 language</label>
-                            <div
-                                class="inline-block px-3 py-1.5 rounded-full text-sm font-medium text-[#111] bg-[#f5f5f5]">
+                            <span
+                                class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200">
                                 {{ project.sourceLang | uppercase }}
-                            </div>
+                            </span>
                         </div>
 
                         <!-- Target Languages -->
                         <div class="flex items-start">
-                            <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4 pt-1.5">Target
+                            <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4 pt-1">Target
                                 languages</label>
-                            <div class="flex flex-wrap gap-2">
-                                <div *ngFor="let lang of project.targetLangs"
-                                    class="inline-block px-3 py-1.5 rounded-full text-sm font-medium text-[#111] bg-[#f5f5f5]">
+                            <div class="flex flex-wrap gap-1.5 max-w-md">
+                                <span *ngFor="let lang of project.targetLangs"
+                                    class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200">
                                     {{ lang | uppercase }}
-                                </div>
+                                </span>
                             </div>
                         </div>
 

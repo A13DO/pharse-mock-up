@@ -1,7 +1,55 @@
-/* Styles handled by Tailwind CSS */
+/* Override PrimeNG table defaults */
+:host ::ng-deep {
+  .p-datatable {
+    border: none;
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+    .p-datatable-thead > tr > th {
+      background: rgb(248 250 252);
+      border: none;
+      // padding: 0;
+    }
+
+    .p-datatable-tbody > tr {
+      background: transparent;
+
+      > td {
+        border: none;
+        // padding: 0;
+      }
+
+      &:focus {
+        outline: none;
+      }
+    }
+
+    .p-datatable-emptymessage > td {
+      border: none;
+    }
   }
+
+  .p-paginator {
+    border: none;
+    background: transparent;
+    padding: 0.75rem 1.5rem;
+  }
+
+  .p-checkbox {
+    width: 1rem;
+    height: 1rem;
+
+    .p-checkbox-box {
+      width: 1rem;
+      height: 1rem;
+      border-color: rgb(203 213 225);
+
+      &.p-highlight {
+        background: rgb(15 23 42);
+        border-color: rgb(15 23 42);
+      }
+    }
+  }
+}
+
+:host {
+  --p-icon-size: 12px;
 }
