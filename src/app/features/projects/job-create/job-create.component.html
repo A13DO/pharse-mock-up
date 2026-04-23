@@ -34,15 +34,6 @@
                 </ng-template>
 
                 <div class="space-y-3" [class.opacity-50]="loadingProject" [class.pointer-events-none]="loadingProject">
-                    <!-- Source Language Display -->
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-sm font-medium text-gray-700">
-                            Source Language
-                        </label>
-                        <div class="p-2.5 bg-gray-50 rounded-md border border-slate-200 text-sm text-gray-900">
-                            {{ projectSourceLang || '-' }}
-                        </div>
-                    </div>
 
                     <!-- File Upload -->
                     <div class="flex flex-col gap-1.5">
@@ -65,6 +56,16 @@
                         <input pInputText id="filename" [(ngModel)]="form.filename" placeholder="e.g., document.docx"
                             class="w-full" />
                         <small class="text-gray-500">Name to use in Content-Disposition header</small>
+                    </div>
+
+                    <!-- Source Language Display -->
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-sm font-medium text-gray-700">
+                            Source Language
+                        </label>
+                        <div class="p-2.5 bg-gray-50 rounded-md border border-slate-200 text-sm text-gray-900">
+                            {{ projectSourceLang || '-' }}
+                        </div>
                     </div>
 
                     <!-- Target Languages -->

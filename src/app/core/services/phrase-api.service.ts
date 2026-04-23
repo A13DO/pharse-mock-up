@@ -86,6 +86,73 @@ export interface LanguagesResponse {
   languages: Language[];
 }
 
+export interface Job {
+  uid: string;
+  innerId: string;
+  status:
+    | 'NEW'
+    | 'EMAILED'
+    | 'ACCEPTED'
+    | 'DECLINED'
+    | 'COMPLETED'
+    | 'CANCELLED';
+  providers?: Array<{
+    type: string;
+    id: string;
+    uid: string;
+  }>;
+  targetLang: string;
+  workflowStep?: {
+    name: string;
+    id: string;
+    order: number;
+    workflowLevel: number;
+  };
+  filename: string;
+  originalFileDirectory?: string;
+  dateDue?: string;
+  dateCreated: string;
+  importStatus?: {
+    status: 'RUNNING' | 'COMPLETED' | 'FAILED';
+    errorMessage?: string;
+  };
+  continuous?: boolean;
+  sourceFileUid?: string;
+  split?: boolean;
+  serverTaskId?: string;
+  owner?: {
+    firstName: string;
+    lastName: string;
+    userName: string;
+    email: string;
+    role: string;
+    id: string;
+    uid: string;
+  };
+  remoteFile?: {
+    humanReadableFolder: string;
+    humanReadableFileName: string;
+    encodedFolder: string;
+    encodedFileName: string;
+  };
+  imported?: boolean;
+}
+
+export interface JobsResponse {
+  totalElements: number;
+  totalPages: number;
+  pageSize: number;
+  pageNumber: number;
+  numberOfElements: number;
+  content: Job[];
+  sort?: {
+    orders: Array<{
+      direction: 'ASC' | 'DESC';
+      property: string;
+    }>;
+  };
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -115,6 +182,15 @@ export class PhraseApiService {
   getProject(projectUid: string): Observable<ProjectDetail> {
     return this.http
       .get<ProjectDetail>(`${this.baseUrl}/v1/projects/${projectUid}`, {
+        headers: this.getHeaders(),
+        withCredentials: true,
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  getJobs(projectUid: string): Observable<JobsResponse> {
+    return this.http
+      .get<JobsResponse>(`${this.baseUrl}/v2/projects/${projectUid}/jobs`, {
         headers: this.getHeaders(),
         withCredentials: true,
       })

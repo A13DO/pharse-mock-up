@@ -197,6 +197,11 @@ export class JobCreateComponent implements OnInit {
       this.response = result;
       this.success = 'Job created successfully!';
       this.loading = false;
+
+      // Navigate back to project details after 1.5 seconds
+      setTimeout(() => {
+        this.router.navigate(['/projects', this.projectUid]);
+      }, 1500);
     } catch (err: any) {
       this.error = err.message || 'Failed to create job';
       this.loading = false;

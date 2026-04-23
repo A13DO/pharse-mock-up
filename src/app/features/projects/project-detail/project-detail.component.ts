@@ -1,9 +1,10 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   PhraseApiService,
   ProjectDetail,
+  Job,
 } from '../../../core/services/phrase-api.service';
 import { HeaderComponent } from '../../../layout/header/header.component';
 
@@ -20,7 +21,9 @@ export class ProjectDetailComponent implements OnInit {
   private router = inject(Router);
 
   project: ProjectDetail | null = null;
+  jobs: Job[] = [];
   loading = false;
+  loadingJobs = false;
   error: string | null = null;
 
   ngOnInit(): void {
@@ -41,11 +44,26 @@ export class ProjectDetailComponent implements OnInit {
       next: (project) => {
         this.project = project;
         this.loading = false;
+        this.loadJobs(projectUid);
       },
       error: (err) => {
         this.error = err.message;
         this.loading = false;
         console.error('Failed to load project:', err);
+      },
+    });
+  }
+
+  loadJobs(projectUid: string): void {
+    this.loadingJobs = true;
+    this.phraseApi.getJobs(projectUid).subscribe({
+      next: (response) => {
+        this.jobs = response.content;
+        this.loadingJobs = false;
+      },
+      error: (err) => {
+        console.error('Failed to load jobs:', err);
+        this.loadingJobs = false;
       },
     });
   }
@@ -62,14 +80,33 @@ export class ProjectDetailComponent implements OnInit {
     switch (status) {
       case 'NEW':
         return 'info';
-      case 'ACTIVE':
-        return 'success';
+      case 'ACCEPTED':
+      case 'EMAILED':
+        return 'warning';
       case 'COMPLETED':
         return 'success';
-      case 'ARCHIVED':
-        return 'warning';
+      case 'DECLINED':
+      case 'CANCELLED':
+        return 'danger';
       default:
         return 'info';
+    }
+  }
+
+  getJobStatusBadgeClass(status: string): string {
+    switch (status) {
+      case 'NEW':
+        return 'bg-blue-100 text-blue-800';
+      case 'ACCEPTED':
+      case 'EMAILED':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'COMPLETED':
+        return 'bg-green-100 text-green-800';
+      case 'DECLINED':
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   }
 
