@@ -1,0 +1,8 @@
+// Job Create Component Styles
+:host {
+  ::ng-deep {
+    .p-fileupload-choose {
+      width: 100%;
+    }
+  }
+}

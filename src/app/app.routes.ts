@@ -24,6 +24,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'projects/:uid/jobs/create',
+    loadComponent: () =>
+      import('./features/projects/job-create/job-create.component').then(
+        (m) => m.JobCreateComponent,
+      ),
+  },
+  {
     path: 'settings',
     loadComponent: () =>
       import('./features/settings/settings.component').then(

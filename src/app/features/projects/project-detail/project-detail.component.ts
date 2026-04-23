@@ -1,12 +1,11 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterModule } from '@angular/router';
+import { CommonModule, formatDate } from '@angular/common';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   PhraseApiService,
   ProjectDetail,
 } from '../../../core/services/phrase-api.service';
 import { HeaderComponent } from '../../../layout/header/header.component';
-import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { TabViewModule } from 'primeng/tabview';
 import { TagModule } from 'primeng/tag';
@@ -18,7 +17,6 @@ import { TagModule } from 'primeng/tag';
     CommonModule,
     RouterModule,
     HeaderComponent,
-    ButtonModule,
     CardModule,
     TabViewModule,
     TagModule,
@@ -29,6 +27,7 @@ import { TagModule } from 'primeng/tag';
 export class ProjectDetailComponent implements OnInit {
   private phraseApi = inject(PhraseApiService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
 
   project: ProjectDetail | null = null;
   loading = false;
@@ -59,6 +58,14 @@ export class ProjectDetailComponent implements OnInit {
         console.error('Failed to load project:', err);
       },
     });
+  }
+
+  onAddJob(): void {
+    if (this.project?.uid) {
+      this.router.navigate(['/projects', this.project.uid, 'jobs', 'create'], {
+        queryParams: { projectUid: this.project.uid },
+      });
+    }
   }
 
   getStatusSeverity(status: string): 'success' | 'warning' | 'danger' | 'info' {

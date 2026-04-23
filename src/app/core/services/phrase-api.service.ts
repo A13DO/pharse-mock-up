@@ -117,6 +117,48 @@ export class PhraseApiService {
       .pipe(catchError(this.handleError));
   }
 
+  createJob(
+    projectUid: string,
+    file: File,
+    filename: string,
+    memsourceHeader: {
+      targetLangs: string[];
+    },
+  ): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const token = this.authService.getToken();
+      const url = `${this.baseUrl}/v1/projects/${projectUid}/jobs`;
+
+      const headers = new HttpHeaders({
+        Authorization: `Bearer ${token}`,
+        'Content-Disposition': `filename="${filename}"`,
+        Memsource: JSON.stringify(memsourceHeader),
+        'Content-Type': 'application/octet-stream',
+      });
+
+      // Read file as binary
+      const reader = new FileReader();
+      reader.onload = () => {
+        const arrayBuffer = reader.result as ArrayBuffer;
+
+        this.http
+          .post(url, arrayBuffer, {
+            headers,
+            withCredentials: true,
+            observe: 'response',
+          })
+          .pipe(catchError(this.handleError))
+          .subscribe({
+            next: (response) => resolve(response.body),
+            error: (error) => reject(error),
+          });
+      };
+
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
   private handleError(error: any): Observable<never> {
     let errorMessage = 'An error occurred';
 
