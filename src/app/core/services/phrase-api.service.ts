@@ -153,6 +153,54 @@ export interface JobsResponse {
   };
 }
 
+export interface ProjectTemplate {
+  templateName: string;
+  sourceLang: string;
+  targetLangs: string[];
+  id: string;
+  uid: string;
+  note?: string;
+  owner?: {
+    firstName: string;
+    lastName: string;
+    userName: string;
+    email: string;
+    role: string;
+    id: string;
+    uid: string;
+  };
+  createdBy?: {
+    firstName: string;
+    lastName: string;
+    userName: string;
+    email: string;
+    role: string;
+    id: string;
+    uid: string;
+  };
+  dateCreated?: string;
+  domain?: { id: string; uid: string; name: string };
+  subDomain?: { id: string; uid: string; name: string };
+  costCenter?: { id: string; uid: string; name: string };
+  businessUnit?: { id: string; uid: string; name: string };
+  client?: { id: string; uid: string; name: string };
+}
+
+export interface ProjectTemplatesResponse {
+  totalElements: number;
+  totalPages: number;
+  pageSize: number;
+  pageNumber: number;
+  numberOfElements: number;
+  content: ProjectTemplate[];
+  sort?: {
+    orders: Array<{
+      direction: 'ASC' | 'DESC';
+      property: string;
+    }>;
+  };
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -191,6 +239,15 @@ export class PhraseApiService {
   getJobs(projectUid: string): Observable<JobsResponse> {
     return this.http
       .get<JobsResponse>(`${this.baseUrl}/v2/projects/${projectUid}/jobs`, {
+        headers: this.getHeaders(),
+        withCredentials: true,
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  getProjectTemplates(): Observable<ProjectTemplatesResponse> {
+    return this.http
+      .get<ProjectTemplatesResponse>(`${this.baseUrl}/v1/projectTemplates`, {
         headers: this.getHeaders(),
         withCredentials: true,
       })

@@ -14,6 +14,40 @@
 
         <form [formGroup]="projectForm" (ngSubmit)="onSubmit()">
             <div class="mb-6 pb-6 border-b border-gray-200">
+                <h3 class="text-base font-semibold text-gray-900 mb-4">Template (Optional)</h3>
+
+                <!-- Project Template Dropdown -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Use Project Template
+                    </label>
+                    <p-dropdown [options]="templates" formControlName="template" optionLabel="templateName"
+                        [filter]="true" filterBy="templateName" placeholder="Select a template (optional)"
+                        [showClear]="true" [loading]="loadingTemplates" styleClass="w-full"
+                        (onChange)="onTemplateSelect($event.value)">
+                        <ng-template pTemplate="selectedItem" let-template>
+                            <div class="flex items-center gap-2" *ngIf="template">
+                                <span class="font-medium">{{ template.templateName }}</span>
+                            </div>
+                        </ng-template>
+                        <ng-template pTemplate="item" let-template>
+                            <div class="flex flex-col">
+                                <span class="font-medium">{{ template.templateName }}</span>
+                                <span class="text-xs text-gray-500">{{ template.sourceLang }} → {{
+                                    template.targetLangs.join(', ') }}</span>
+                            </div>
+                        </ng-template>
+                    </p-dropdown>
+                    <small class="text-gray-500 text-xs mt-1 block">
+                        Select a template to auto-fill the form
+                    </small>
+                    <small class="text-amber-600 text-xs mt-1 block" *ngIf="templateError">
+                        {{ templateError }}
+                    </small>
+                </div>
+            </div>
+
+            <div class="mb-6 pb-6 border-b border-gray-200">
                 <h3 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h3>
 
                 <app-form-field label="Project Name" [control]="getControl('name')" type="text"
