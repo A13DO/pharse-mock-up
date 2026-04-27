@@ -1,0 +1,16 @@
+<div class="job-file-download">
+    <button (click)="downloadFile()" [disabled]="isDownloading" [class]="buttonClass || 'default-button'" type="button">
+        <span *ngIf="!isDownloading" class="button-content">
+            <i class="pi pi-download"></i>
+            {{ buttonText }}
+        </span>
+        <span *ngIf="isDownloading" class="button-content">
+            <i class="pi pi-spin pi-spinner"></i>
+            Downloading...
+        </span>
+    </button>
+
+    <div *ngIf="error" class="error-message">
+        {{ error }}
+    </div>
+</div>

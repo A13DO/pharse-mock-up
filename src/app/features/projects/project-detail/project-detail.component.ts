@@ -7,11 +7,12 @@ import {
   Job,
 } from '../../../core/services/phrase-api.service';
 import { HeaderComponent } from '../../../layout/header/header.component';
+import { JobFileDownloadComponent } from "../../../shared/components/job-file-download/job-file-download.component";
 
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, HeaderComponent],
+  imports: [CommonModule, RouterModule, HeaderComponent, JobFileDownloadComponent],
   templateUrl: './project-detail.component.html',
   styleUrl: './project-detail.component.scss',
 })

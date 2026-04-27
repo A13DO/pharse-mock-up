@@ -337,6 +337,80 @@ export class PhraseApiService {
     });
   }
 
+  /**
+   * Download original source file from Phrase TMS
+   * @param projectUid - Project unique identifier
+   * @param jobUid - Job unique identifier
+   * @returns Observable that completes when download starts
+   */
+  downloadOriginalFile(projectUid: string, jobUid: string): Observable<void> {
+    const token = this.authService.getToken();
+    if (!token) {
+      return throwError(
+        () => new Error('Authentication token is required for download'),
+      );
+    }
+
+    const headers = new HttpHeaders({
+      Authorization: token,
+    });
+
+    return new Observable((observer) => {
+      this.http
+        .get(`/web/api2/v1/projects/${projectUid}/jobs/${jobUid}/preview`, {
+          headers,
+          responseType: 'blob',
+          observe: 'response',
+        })
+        .pipe(catchError(this.handleError))
+        .subscribe({
+          next: (response) => {
+            // Extract filename from Content-Disposition header
+            const contentDisposition = response.headers.get(
+              'Content-Disposition',
+            );
+            let filename = 'job-file';
+
+            if (contentDisposition) {
+              // Try RFC 5987 encoding first (filename*=UTF-8''filename.ext)
+              const utf8Match = contentDisposition.match(
+                /filename\*=UTF-8''(.+)/i,
+              );
+              if (utf8Match) {
+                filename = decodeURIComponent(utf8Match[1]);
+              } else {
+                // Fall back to plain filename="file.txt" or filename=file.txt
+                const plainMatch =
+                  contentDisposition.match(/filename="?([^"]+)"?/i);
+                if (plainMatch) {
+                  filename = plainMatch[1];
+                }
+              }
+            }
+
+            // Create blob and trigger download
+            const blob = response.body as Blob;
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+
+            // Cleanup
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            observer.next();
+            observer.complete();
+          },
+          error: (error) => {
+            observer.error(error);
+          },
+        });
+    });
+  }
+
   private handleError(error: any): Observable<never> {
     let errorMessage = 'An error occurred';
 
