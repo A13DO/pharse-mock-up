@@ -31,6 +31,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'translate/:projectUid/:jobUid',
+    loadComponent: () =>
+      import('./features/translation/translation.component').then(
+        (m) => m.TranslationComponent,
+      ),
+  },
+  {
     path: 'settings',
     loadComponent: () =>
       import('./features/settings/settings.component').then(

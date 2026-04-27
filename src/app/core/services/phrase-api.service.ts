@@ -411,6 +411,47 @@ export class PhraseApiService {
     });
   }
 
+  /**
+   * Download original source file as Blob (without triggering browser download)
+   * @param projectUid - Project unique identifier
+   * @param jobUid - Job unique identifier
+   * @returns Promise with the file as Blob
+   */
+  downloadOriginalFileAsBlob(
+    projectUid: string,
+    jobUid: string,
+  ): Promise<Blob> {
+    const token = this.authService.getToken();
+    if (!token) {
+      return Promise.reject(
+        new Error('Authentication token is required for download'),
+      );
+    }
+
+    const headers = new HttpHeaders({
+      Authorization: token,
+    });
+
+    return new Promise((resolve, reject) => {
+      this.http
+        .get(`/web/api2/v1/projects/${projectUid}/jobs/${jobUid}/original`, {
+          headers,
+          responseType: 'blob',
+          observe: 'response',
+        })
+        .pipe(catchError(this.handleError))
+        .subscribe({
+          next: (response) => {
+            const blob = response.body as Blob;
+            resolve(blob);
+          },
+          error: (error) => {
+            reject(error);
+          },
+        });
+    });
+  }
+
   private handleError(error: any): Observable<never> {
     let errorMessage = 'An error occurred';
 
