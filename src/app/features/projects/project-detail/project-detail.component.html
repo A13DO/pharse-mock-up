@@ -165,7 +165,11 @@
                                         {{ job.innerId }}
                                     </td>
                                     <td class="px-6 py-4 text-sm text-slate-900">
-                                        {{ job.filename }}
+                                        <a [href]="'https://cloud.memsource.com/web/job/' + job.uid + '/translate'"
+                                            target="_blank"
+                                            class="text-indigo-600 hover:text-indigo-800 hover:underline font-medium">
+                                            {{ job.filename }}
+                                        </a>
                                     </td>
                                     <td class="px-6 py-4 text-sm">
                                         <span
