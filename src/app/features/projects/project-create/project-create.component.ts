@@ -12,6 +12,7 @@ import {
   PhraseApiService,
   CreateProjectDto,
   Language,
+  ProjectTemplate,
 } from '../../../core/services/phrase-api.service';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { HeaderComponent } from '../../../layout/header/header.component';
@@ -45,8 +46,13 @@ export class ProjectCreateComponent implements OnInit {
   loadingLanguages = false;
   languageError: string | null = null;
 
+  templates: ProjectTemplate[] = [];
+  loadingTemplates = false;
+  templateError: string | null = null;
+
   ngOnInit(): void {
     this.projectForm = this.fb.group({
+      template: [null],
       name: ['', Validators.required],
       sourceLang: [null, Validators.required],
       targetLangs: [[], Validators.required],
@@ -57,6 +63,7 @@ export class ProjectCreateComponent implements OnInit {
     });
 
     this.loadLanguages();
+    this.loadTemplates();
   }
 
   loadLanguages(): void {
@@ -74,6 +81,47 @@ export class ProjectCreateComponent implements OnInit {
         this.loadingLanguages = false;
         console.error('Failed to load languages:', err);
       },
+    });
+  }
+
+  loadTemplates(): void {
+    this.loadingTemplates = true;
+    this.templateError = null;
+
+    this.phraseApi.getProjectTemplates().subscribe({
+      next: (response) => {
+        this.templates = response.content;
+        this.loadingTemplates = false;
+      },
+      error: (err) => {
+        this.templateError = 'Failed to load templates.';
+        this.loadingTemplates = false;
+        console.error('Failed to load templates:', err);
+      },
+    });
+  }
+
+  onTemplateSelect(template: ProjectTemplate | null): void {
+    if (!template) {
+      return;
+    }
+
+    // Find the source language object
+    const sourceLang = this.languages.find(
+      (lang) => lang.code === template.sourceLang,
+    );
+
+    // Find the target language objects
+    const targetLangs = this.languages.filter((lang) =>
+      template.targetLangs.includes(lang.code),
+    );
+
+    // Populate the form with template data
+    this.projectForm.patchValue({
+      name: template.templateName,
+      sourceLang: sourceLang || null,
+      targetLangs: targetLangs,
+      note: template.note || '',
     });
   }
 

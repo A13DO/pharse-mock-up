@@ -1,0 +1,24 @@
+[build]
+  publish = "dist/pharse-mock-up/browser"
+  command = "npm run build"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://cloud.memsource.com/web/api2/:splat"
+  status = 200
+  force = true
+  headers = {X-From = "Netlify"}
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, Memsource, Content-Disposition"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
