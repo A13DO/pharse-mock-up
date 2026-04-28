@@ -60,22 +60,42 @@ export class DocxTranslationService {
    * Extract raw text from DOCX file
    */
   private async extractTextFromDocx(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
+    // Read the file into an ArrayBuffer first, outside the mammoth call
+    const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
       const reader = new FileReader();
-
-      reader.onload = async (e) => {
-        try {
-          const arrayBuffer = e.target?.result as ArrayBuffer;
-          const result = await mammoth.extractRawText({ arrayBuffer });
-          resolve(result.value);
-        } catch (error) {
-          reject(new Error('Failed to extract text from DOCX'));
-        }
-      };
-
-      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
+      reader.onerror = () =>
+        reject(new Error(`FileReader failed: ${reader.error?.message}`));
       reader.readAsArrayBuffer(file);
     });
+
+    console.log('📄 ArrayBuffer size:', arrayBuffer.byteLength, 'bytes');
+
+    if (arrayBuffer.byteLength === 0) {
+      throw new Error(
+        'The downloaded file is empty. Check that the Phrase TMS job has an original file attached.',
+      );
+    }
+
+    // DOCX files start with the PK magic bytes (0x50 0x4B) — ZIP format
+    const header = new Uint8Array(arrayBuffer.slice(0, 4));
+    const isPK = header[0] === 0x50 && header[1] === 0x4b;
+    if (!isPK) {
+      throw new Error(
+        `File does not appear to be a valid DOCX (expected ZIP/PK header, got 0x${header[0].toString(16)}${header[1].toString(16)}). ` +
+          'The Phrase API may have returned HTML or an error page instead of the binary file.',
+      );
+    }
+
+    try {
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      if (result.messages?.length) {
+        console.warn('⚠️ mammoth warnings:', result.messages);
+      }
+      return result.value;
+    } catch (err: any) {
+      throw new Error(`mammoth failed to parse DOCX: ${err?.message || err}`);
+    }
   }
 
   private async callProvider(

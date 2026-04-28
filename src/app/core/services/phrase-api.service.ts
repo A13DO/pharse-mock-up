@@ -434,7 +434,7 @@ export class PhraseApiService {
 
     return new Promise((resolve, reject) => {
       this.http
-        .get(`/web/api2/v1/projects/${projectUid}/jobs/${jobUid}/original`, {
+        .get(`/web/api2/v1/projects/${projectUid}/jobs/${jobUid}/preview`, {
           headers,
           responseType: 'blob',
           observe: 'response',

@@ -11,9 +11,7 @@
         <!-- Error State -->
         <div *ngIf="error"
             class="bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-lg mb-6 flex justify-between items-center">
-            <div>
-                <strong class="font-semibold">Error:</strong> {{ error }}
-            </div>
+            <div><strong class="font-semibold">Error:</strong> {{ error }}</div>
             <button
                 class="bg-transparent border-none text-2xl leading-none cursor-pointer text-red-800 p-0 w-6 h-6 hover:opacity-70"
                 (click)="error = null">×</button>
@@ -22,9 +20,7 @@
         <!-- Success Message -->
         <div *ngIf="successMessage"
             class="bg-green-50 border border-green-200 text-green-800 px-6 py-4 rounded-lg mb-6 flex justify-between items-center">
-            <div>
-                <strong class="font-semibold">Success:</strong> {{ successMessage }}
-            </div>
+            <div><strong class="font-semibold">Success:</strong> {{ successMessage }}</div>
             <button
                 class="bg-transparent border-none text-2xl leading-none cursor-pointer text-green-800 p-0 w-6 h-6 hover:opacity-70"
                 (click)="successMessage = null">×</button>
@@ -38,16 +34,27 @@
                     class="h-9 px-4 inline-flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors border border-slate-300 bg-white hover:bg-slate-50 hover:text-slate-900">
                     <i class="pi pi-arrow-left text-xs"></i> Back to Project
                 </button>
-
-                <button *ngIf="originalFile && !translatedFile" (click)="resetTranslation()"
+                <button *ngIf="translatedFile" (click)="resetTranslation()"
                     class="h-9 px-4 inline-flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors border border-slate-300 bg-white hover:bg-slate-50 hover:text-slate-900">
-                    <i class="pi pi-refresh text-xs"></i> Reset
+                    <i class="pi pi-refresh text-xs"></i> Translate Again
                 </button>
             </div>
 
             <!-- Job Info Card -->
             <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">Document Information</h2>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">Document Information</h2>
+                    <!-- File fetch status -->
+                    <div *ngIf="isDownloadingFile" class="flex items-center gap-2 text-sm text-indigo-600">
+                        <div class="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin">
+                        </div>
+                        Fetching file from Phrase TMS…
+                    </div>
+                    <div *ngIf="originalFile && !isDownloadingFile"
+                        class="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+                        <i class="pi pi-check-circle text-xs"></i> File ready
+                    </div>
+                </div>
                 <div class="grid grid-cols-3 gap-6">
                     <div>
                         <span class="text-sm text-gray-500">Filename</span>
@@ -66,102 +73,119 @@
 
             <!-- Translation Workflow -->
             <div class="space-y-6">
-                <!-- Step 1: Download Original File -->
+
+                <!-- Step 1: AI Provider -->
                 <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1">
-                            <h3 class="text-base font-semibold text-gray-900 mb-2">
-                                <span
-                                    class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-sm font-bold mr-2">1</span>
-                                Download Original File
-                            </h3>
-                            <p class="text-sm text-gray-600 mb-4 ml-8">Download the source document from Phrase TMS to
-                                prepare for AI translation.</p>
+                    <h3 class="text-base font-semibold text-gray-900 mb-1">
+                        <span
+                            class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-sm font-bold mr-2">1</span>
+                        Select AI Provider &amp; Model
+                    </h3>
+                    <p class="text-sm text-gray-500 mb-4 ml-8">Choose the provider and model to use for translation.</p>
 
-                            <div *ngIf="originalFile"
-                                class="ml-8 p-3 bg-gray-50 rounded-md border border-gray-200 mb-4">
-                                <div class="flex items-center gap-2">
-                                    <i class="pi pi-file text-indigo-600"></i>
-                                    <span class="text-sm font-medium text-gray-900">{{ originalFile.name }}</span>
-                                    <span class="text-xs text-gray-500">({{ (originalFile.size / 1024).toFixed(2) }}
-                                        KB)</span>
-                                </div>
+                    <!-- Provider Cards -->
+                    <div class="ml-8 grid grid-cols-2 gap-3 mb-4 sm:grid-cols-4">
+                        <button *ngFor="let p of providers" (click)="selectProvider(p.id)" [disabled]="isTranslating"
+                            class="relative flex flex-col items-start p-3 rounded-lg border-2 text-left transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                            [style.borderColor]="selectedProvider === p.id ? p.color : '#e5e7eb'"
+                            [style.background]="selectedProvider === p.id ? 'color-mix(in srgb,' + p.color + ' 8%, white)' : 'white'">
+                            <div class="flex items-center justify-between w-full mb-1">
+                                <span class="text-sm font-semibold text-gray-900">{{ p.name }}</span>
+                                <span *ngIf="p.freeTier"
+                                    class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200">Free</span>
+                                <span *ngIf="!p.freeTier"
+                                    class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">Paid</span>
                             </div>
-                        </div>
-
-                        <button (click)="downloadOriginalFile()" [disabled]="isDownloadingFile || !!originalFile"
-                            class="h-9 px-4 bg-indigo-600 text-white rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <i class="pi text-xs" [class.pi-spin]="isDownloadingFile"
-                                [class.pi-spinner]="isDownloadingFile" [class.pi-download]="!isDownloadingFile"></i>
-                            {{ isDownloadingFile ? 'Downloading...' : (originalFile ? 'Downloaded' : 'Download File') }}
+                            <a [href]="p.keyUrl" target="_blank" rel="noopener"
+                                class="text-[11px] mt-0.5 hover:underline" [style.color]="p.color"
+                                (click)="$event.stopPropagation()">Get API key →</a>
                         </button>
+                    </div>
+
+                    <!-- Model Chips -->
+                    <div class="ml-8 flex flex-wrap gap-2 mb-4" *ngIf="selectedProviderInfo?.models?.length">
+                        <button *ngFor="let m of selectedProviderInfo!.models" (click)="selectModel(m.id)"
+                            [disabled]="isTranslating"
+                            class="px-3 py-1.5 rounded-md border text-sm font-medium transition-all disabled:cursor-not-allowed"
+                            [class.border-gray-200]="selectedModel !== m.id"
+                            [class.text-gray-700]="selectedModel !== m.id" [class.bg-white]="selectedModel !== m.id"
+                            [class.text-white]="selectedModel === m.id"
+                            [style.backgroundColor]="selectedModel === m.id ? selectedProviderInfo!.color : ''"
+                            [style.borderColor]="selectedModel === m.id ? selectedProviderInfo!.color : ''">
+                            {{ m.name }}
+                            <span class="ml-1 text-xs opacity-70">{{ m.description }}</span>
+                        </button>
+                    </div>
+
+                    <!-- API Key Input -->
+                    <div class="ml-8">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            {{ selectedProviderInfo?.keyLabel }}
+                        </label>
+                        <div class="flex gap-2">
+                            <input [type]="showApiKey ? 'text' : 'password'" [(ngModel)]="apiKey" (blur)="saveApiKey()"
+                                [placeholder]="selectedProviderInfo?.keyPlaceholder || ''" [disabled]="isTranslating"
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                            <button (click)="toggleApiKeyVisibility()" type="button"
+                                class="px-3 py-2 border border-gray-300 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-50">
+                                <i class="pi text-sm" [class.pi-eye]="!showApiKey"
+                                    [class.pi-eye-slash]="showApiKey"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">Saved locally in your browser — never sent to any server
+                            except the chosen AI provider.</p>
                     </div>
                 </div>
 
-                <!-- Step 2: Configure AI Model & Prompt -->
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6"
-                    [class.opacity-50]="!originalFile">
-                    <h3 class="text-base font-semibold text-gray-900 mb-2">
+                <!-- Step 2: Configure Prompt -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-1">
                         <span
                             class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-sm font-bold mr-2">2</span>
-                        Configure AI Translation
+                        Translation Instructions
                     </h3>
-                    <p class="text-sm text-gray-600 mb-4 ml-8">Select an AI model and customize the translation prompt.
-                    </p>
+                    <p class="text-sm text-gray-500 mb-4 ml-8">Customise the prompt sent to the AI.</p>
 
                     <div class="ml-8 space-y-4">
-                        <!-- AI Model Selection -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">AI Model</label>
-                            <select [(ngModel)]="selectedModel" [disabled]="!originalFile"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed">
-                                <option *ngFor="let model of availableModels" [ngValue]="model">
-                                    {{ model.name }} - {{ model.description }}
-                                </option>
-                            </select>
-                        </div>
-
-                        <!-- Translation Prompt -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Translation Prompt</label>
-                            <textarea [(ngModel)]="translationPrompt" [disabled]="!originalFile" rows="3"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Prompt</label>
+                            <textarea [(ngModel)]="translationPrompt" [disabled]="isTranslating" rows="3"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
                                 placeholder="Enter translation instructions..."></textarea>
                         </div>
-
-                        <!-- Custom Instructions (Optional) -->
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Additional Instructions
-                                (Optional)</label>
-                            <textarea [(ngModel)]="customInstructions" [disabled]="!originalFile" rows="2"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                placeholder="Add any specific instructions, terminology, or context..."></textarea>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Additional Instructions
+                                <span class="font-normal text-gray-400">(optional)</span></label>
+                            <textarea [(ngModel)]="customInstructions" [disabled]="isTranslating" rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                placeholder="Terminology, style notes, context…"></textarea>
                         </div>
                     </div>
                 </div>
 
                 <!-- Step 3: Translate -->
                 <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6"
-                    [class.opacity-50]="!originalFile">
+                    [class.opacity-50]="!originalFile && !isDownloadingFile">
                     <div class="flex items-start justify-between">
                         <div class="flex-1">
-                            <h3 class="text-base font-semibold text-gray-900 mb-2">
+                            <h3 class="text-base font-semibold text-gray-900 mb-1">
                                 <span
                                     class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-sm font-bold mr-2">3</span>
                                 Translate Document
                             </h3>
-                            <p class="text-sm text-gray-600 mb-4 ml-8">Send the document to the AI model for
-                                translation.</p>
+                            <p class="text-sm text-gray-500 mb-4 ml-8">Send the job file to the selected AI model.</p>
 
                             <!-- Translation Progress -->
-                            <div *ngIf="isTranslating || translationProgress > 0" class="ml-8 mb-4">
+                            <div *ngIf="isTranslating || (translationProgress > 0 && translationProgress < 100)"
+                                class="ml-8 mb-4">
                                 <div class="flex justify-between text-xs text-gray-600 mb-1">
-                                    <span>Translation in progress...</span>
+                                    <span>Translating…</span>
                                     <span>{{ translationProgress }}%</span>
                                 </div>
                                 <div class="w-full bg-gray-200 rounded-full h-2">
-                                    <div class="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-                                        [style.width.%]="translationProgress"></div>
+                                    <div class="h-2 rounded-full transition-all duration-300"
+                                        [style.width.%]="translationProgress"
+                                        [style.backgroundColor]="selectedProviderInfo?.color || '#6366f1'"></div>
                                 </div>
                             </div>
 
@@ -169,51 +193,48 @@
                             <div *ngIf="translatedFile" class="ml-8 p-3 bg-green-50 rounded-md border border-green-200">
                                 <div class="flex items-center gap-2">
                                     <i class="pi pi-check-circle text-green-600"></i>
-                                    <span class="text-sm font-medium text-green-900">Translation completed: {{
-                                        translatedFileName }}</span>
+                                    <span class="text-sm font-medium text-green-900">{{ translatedFileName }}</span>
                                 </div>
                             </div>
                         </div>
 
                         <button (click)="translateWithAI()"
-                            [disabled]="!originalFile || isTranslating || !!translatedFile"
-                            class="h-9 px-4 bg-slate-900 text-white rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                            [disabled]="!originalFile || isTranslating || !!translatedFile || isDownloadingFile"
+                            class="h-9 px-4 text-white rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            [style.backgroundColor]="selectedProviderInfo?.color || '#1e293b'">
                             <i class="pi text-xs" [class.pi-spin]="isTranslating" [class.pi-spinner]="isTranslating"
                                 [class.pi-bolt]="!isTranslating"></i>
-                            {{ isTranslating ? 'Translating...' : (translatedFile ? 'Translated' : 'Translate with AI')
-                            }}
+                            {{ isTranslating ? 'Translating…' : (translatedFile ? 'Translated' : 'Translate with AI') }}
                         </button>
                     </div>
                 </div>
 
-                <!-- Step 4: Download Translated File -->
+                <!-- Step 4: Download / Upload -->
                 <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6"
                     [class.opacity-50]="!translatedFile">
                     <div class="flex items-start justify-between">
                         <div class="flex-1">
-                            <h3 class="text-base font-semibold text-gray-900 mb-2">
+                            <h3 class="text-base font-semibold text-gray-900 mb-1">
                                 <span
                                     class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-sm font-bold mr-2">4</span>
                                 Download Translated File
                             </h3>
-                            <p class="text-sm text-gray-600 ml-8">Download the AI-translated document or upload it back
-                                to Phrase TMS.</p>
+                            <p class="text-sm text-gray-500 ml-8">Save the translated DOCX or upload it back to Phrase
+                                TMS.</p>
                         </div>
-
                         <div class="flex gap-2">
                             <button (click)="downloadTranslatedFile()" [disabled]="!translatedFile"
                                 class="h-9 px-4 bg-indigo-600 text-white rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i class="pi pi-download text-xs"></i>
-                                Download
+                                <i class="pi pi-download text-xs"></i> Download
                             </button>
                             <button (click)="uploadTranslatedToPhrase()" [disabled]="!translatedFile"
                                 class="h-9 px-4 bg-green-600 text-white rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i class="pi pi-upload text-xs"></i>
-                                Upload to Phrase
+                                <i class="pi pi-upload text-xs"></i> Upload to Phrase
                             </button>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>

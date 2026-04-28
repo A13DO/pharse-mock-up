@@ -4,14 +4,26 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HeaderComponent } from '../../layout/header/header.component';
 import { PhraseApiService, Job } from '../../core/services/phrase-api.service';
-import { TranslationService } from '../../core/services/translation.service';
+import {
+  DocxTranslationService,
+  Provider,
+} from '../../services/docx-translation.service';
 
-interface AIModel {
+interface ModelOption {
   id: string;
   name: string;
-  provider: 'openai' | 'anthropic' | 'google';
   description: string;
-  supportsFileUpload: boolean;
+}
+
+interface ProviderInfo {
+  id: Provider;
+  name: string;
+  color: string;
+  keyLabel: string;
+  keyPlaceholder: string;
+  keyUrl: string;
+  freeTier?: boolean;
+  models: ModelOption[];
 }
 
 @Component({
@@ -25,7 +37,7 @@ export class TranslationComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private phraseApi = inject(PhraseApiService);
-  private translationService = inject(TranslationService);
+  private docxService = inject(DocxTranslationService);
 
   projectUid: string | null = null;
   jobUid: string | null = null;
@@ -35,12 +47,11 @@ export class TranslationComponent implements OnInit {
   error: string | null = null;
   successMessage: string | null = null;
 
-  // File and AI Translation settings
+  // File and AI Translation state
   originalFile: File | null = null;
   translatedFile: Blob | null = null;
   translatedFileName: string = '';
 
-  selectedModel: AIModel | null = null;
   isTranslating = false;
   isDownloadingFile = false;
   translationProgress = 0;
@@ -48,43 +59,117 @@ export class TranslationComponent implements OnInit {
   translationPrompt: string = '';
   customInstructions: string = '';
 
-  availableModels: AIModel[] = [
+  // Provider & model selection (persisted per localStorage)
+  selectedProvider: Provider = 'anthropic';
+  selectedModel: string = 'claude-opus-4-20250514';
+  apiKey: string = '';
+  showApiKey: boolean = false;
+
+  providers: ProviderInfo[] = [
     {
-      id: 'gpt-4',
-      name: 'GPT-4',
-      provider: 'openai',
-      description: 'Most capable model for document translation',
-      supportsFileUpload: true,
+      id: 'anthropic',
+      name: 'Anthropic Claude',
+      color: '#c96442',
+      keyLabel: 'Anthropic API Key',
+      keyPlaceholder: 'sk-ant-...',
+      keyUrl: 'https://console.anthropic.com',
+      freeTier: false,
+      models: [
+        {
+          id: 'claude-opus-4-20250514',
+          name: 'Claude Opus 4',
+          description: 'Most capable',
+        },
+        {
+          id: 'claude-sonnet-4-20250514',
+          name: 'Claude Sonnet 4',
+          description: 'Fast & cost-effective',
+        },
+      ],
     },
     {
-      id: 'gpt-3.5-turbo',
-      name: 'GPT-3.5 Turbo',
-      provider: 'openai',
-      description: 'Fast and efficient for standard translations',
-      supportsFileUpload: false,
+      id: 'openai',
+      name: 'OpenAI ChatGPT',
+      color: '#10a37f',
+      keyLabel: 'OpenAI API Key',
+      keyPlaceholder: 'sk-proj-...',
+      keyUrl: 'https://platform.openai.com/api-keys',
+      freeTier: false,
+      models: [
+        {
+          id: 'gpt-4o',
+          name: 'GPT-4o',
+          description: 'Most capable, multimodal',
+        },
+        {
+          id: 'gpt-4o-mini',
+          name: 'GPT-4o Mini',
+          description: 'Fast & budget-friendly',
+        },
+        {
+          id: 'gpt-4-turbo',
+          name: 'GPT-4 Turbo',
+          description: 'High quality, reliable',
+        },
+      ],
     },
     {
-      id: 'claude-3-opus',
-      name: 'Claude 3 Opus',
-      provider: 'anthropic',
-      description: 'Advanced reasoning for document translation',
-      supportsFileUpload: true,
+      id: 'gemini',
+      name: 'Google Gemini',
+      color: '#4285f4',
+      keyLabel: 'Google AI Studio Key',
+      keyPlaceholder: 'AIza...',
+      keyUrl: 'https://aistudio.google.com/apikey',
+      freeTier: true,
+      models: [
+        {
+          id: 'gemini-1.5-pro',
+          name: 'Gemini 1.5 Pro',
+          description: 'Best quality',
+        },
+        {
+          id: 'gemini-1.5-flash',
+          name: 'Gemini 1.5 Flash',
+          description: 'Fast & free',
+        },
+        {
+          id: 'gemini-2.0-flash-exp',
+          name: 'Gemini 2.0 Flash',
+          description: 'Experimental',
+        },
+      ],
     },
     {
-      id: 'claude-3-sonnet',
-      name: 'Claude 3 Sonnet',
-      provider: 'anthropic',
-      description: 'Balanced performance and quality',
-      supportsFileUpload: true,
-    },
-    {
-      id: 'gemini-pro',
-      name: 'Gemini Pro',
-      provider: 'google',
-      description: "Google's advanced AI model",
-      supportsFileUpload: true,
+      id: 'groq',
+      name: 'Groq',
+      color: '#f55036',
+      keyLabel: 'Groq API Key',
+      keyPlaceholder: 'gsk_...',
+      keyUrl: 'https://console.groq.com',
+      freeTier: true,
+      models: [
+        {
+          id: 'llama-3.3-70b-versatile',
+          name: 'Llama 3.3 70B',
+          description: 'Best quality, free',
+        },
+        {
+          id: 'llama-3.1-8b-instant',
+          name: 'Llama 3.1 8B',
+          description: 'Ultra-fast, free',
+        },
+        {
+          id: 'mixtral-8x7b-32768',
+          name: 'Mixtral 8x7B',
+          description: 'Long context, free',
+        },
+      ],
     },
   ];
+
+  get selectedProviderInfo(): ProviderInfo | undefined {
+    return this.providers.find((p) => p.id === this.selectedProvider);
+  }
 
   ngOnInit(): void {
     this.projectUid = this.route.snapshot.paramMap.get('projectUid');
@@ -95,13 +180,32 @@ export class TranslationComponent implements OnInit {
       return;
     }
 
-    this.selectedModel = this.availableModels[0];
+    this.loadSavedSettings();
     this.loadJobDetails();
     this.initializePrompt();
   }
 
+  private loadSavedSettings(): void {
+    const savedProvider = localStorage.getItem(
+      'docx_ai_provider',
+    ) as Provider | null;
+    if (savedProvider && this.providers.some((p) => p.id === savedProvider)) {
+      this.selectedProvider = savedProvider;
+    }
+    const info = this.selectedProviderInfo;
+    const savedModel = localStorage.getItem(
+      `docx_ai_model_${this.selectedProvider}`,
+    );
+    this.selectedModel = savedModel || info?.models[0]?.id || '';
+    this.apiKey =
+      localStorage.getItem(`docx_ai_key_${this.selectedProvider}`) || '';
+  }
+
   initializePrompt(): void {
-    this.translationPrompt = `Translate this document from English to the target language. Maintain the original formatting, structure, and style. Ensure accuracy and cultural appropriateness.`;
+    this.translationPrompt =
+      'Translate this document from English to the target language. ' +
+      'Maintain the original formatting, structure, and style. ' +
+      'Ensure accuracy and cultural appropriateness.';
   }
 
   loadJobDetails(): void {
@@ -114,6 +218,8 @@ export class TranslationComponent implements OnInit {
         this.loading = false;
         if (this.job) {
           this.updatePromptWithLanguage();
+          // Auto-fetch the job file — no manual step needed
+          this.downloadOriginalFile();
         }
       },
       error: (err) => {
@@ -126,12 +232,48 @@ export class TranslationComponent implements OnInit {
 
   updatePromptWithLanguage(): void {
     if (this.job?.targetLang) {
-      this.translationPrompt = `Translate this document to ${this.job.targetLang.toUpperCase()}. Maintain the original formatting, structure, and style. Ensure accuracy and cultural appropriateness.`;
+      this.translationPrompt =
+        `Translate this document to ${this.job.targetLang.toUpperCase()}. ` +
+        'Maintain the original formatting, structure, and style. ' +
+        'Ensure accuracy and cultural appropriateness.';
     }
   }
 
+  selectProvider(provider: Provider): void {
+    this.selectedProvider = provider;
+    localStorage.setItem('docx_ai_provider', provider);
+    const info = this.providers.find((p) => p.id === provider);
+    const savedModel = localStorage.getItem(`docx_ai_model_${provider}`);
+    this.selectedModel = savedModel || info?.models[0]?.id || '';
+    this.apiKey = localStorage.getItem(`docx_ai_key_${provider}`) || '';
+  }
+
+  selectModel(modelId: string): void {
+    this.selectedModel = modelId;
+    localStorage.setItem(`docx_ai_model_${this.selectedProvider}`, modelId);
+  }
+
+  saveApiKey(): void {
+    if (this.apiKey.trim()) {
+      localStorage.setItem(
+        `docx_ai_key_${this.selectedProvider}`,
+        this.apiKey.trim(),
+      );
+    }
+  }
+
+  toggleApiKeyVisibility(): void {
+    this.showApiKey = !this.showApiKey;
+  }
+
   async downloadOriginalFile(): Promise<void> {
-    if (!this.projectUid || !this.jobUid || this.isDownloadingFile) return;
+    if (
+      !this.projectUid ||
+      !this.jobUid ||
+      this.isDownloadingFile ||
+      this.originalFile
+    )
+      return;
 
     this.isDownloadingFile = true;
     this.error = null;
@@ -142,94 +284,68 @@ export class TranslationComponent implements OnInit {
         this.jobUid,
       );
 
-      const fileName = this.job?.filename || 'document.docx';
-      this.originalFile = new File([blob], fileName, {
-        type: blob.type,
-      });
+      console.log('📦 Blob size:', blob.size, 'bytes | type:', blob.type);
 
-      this.successMessage = 'File downloaded successfully. Ready to translate.';
+      // If small, it's likely a JSON/HTML error response — surface it
+      if (blob.size < 10_000) {
+        const preview = await blob.text();
+        console.warn('⚠️ Small blob content (likely not a DOCX):', preview);
+      }
+
+      const fileName = this.job?.filename || 'document.docx';
+      // Force the correct MIME type — Phrase may return an empty type
+      const mimeType =
+        blob.type ||
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      this.originalFile = new File([blob], fileName, { type: mimeType });
       this.isDownloadingFile = false;
     } catch (err: any) {
-      this.error = err.message || 'Failed to download file';
+      this.error = err.message || 'Failed to fetch the job file';
       this.isDownloadingFile = false;
       console.error('Download error:', err);
     }
   }
 
   async translateWithAI(): Promise<void> {
-    if (!this.selectedModel || !this.originalFile || this.isTranslating) {
-      console.log('⚠️ Translation blocked:', {
-        hasModel: !!this.selectedModel,
-        hasFile: !!this.originalFile,
-        isTranslating: this.isTranslating,
-      });
+    if (!this.originalFile || this.isTranslating) return;
+    if (!this.apiKey.trim()) {
+      this.error = 'Please enter your API key before translating.';
       return;
     }
-
-    console.log('🔥 Starting AI translation process...');
-    console.log(
-      'Selected model:',
-      this.selectedModel.name,
-      '(' + this.selectedModel.id + ')',
-    );
-    console.log('Original file:', this.originalFile.name);
-    console.log('Target language:', this.job?.targetLang);
 
     this.isTranslating = true;
     this.translationProgress = 0;
     this.error = null;
     this.successMessage = null;
 
+    const progressInterval = setInterval(() => {
+      if (this.translationProgress < 90) this.translationProgress += 10;
+    }, 500);
+
     try {
       const fullPrompt = this.customInstructions
         ? `${this.translationPrompt}\n\nAdditional instructions: ${this.customInstructions}`
         : this.translationPrompt;
 
-      console.log('📝 Full prompt:', fullPrompt);
+      const result = await this.docxService.translateDocument(
+        this.originalFile,
+        fullPrompt,
+        this.selectedProvider,
+        this.apiKey,
+        this.selectedModel,
+      );
 
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        if (this.translationProgress < 90) {
-          this.translationProgress += 10;
-        }
-      }, 500);
-
-      try {
-        console.log('⏳ Calling translation service...');
-        const result = await this.translationService.translateDocument(
-          this.originalFile,
-          this.selectedModel.id,
-          fullPrompt,
-          'en', // source language
-          this.job?.targetLang, // target language
-        );
-        console.log('✅ Translation service returned result:', result);
-
-        clearInterval(progressInterval);
-        this.translationProgress = 100;
-
-        this.translatedFile = result.file;
-        this.translatedFileName = result.filename;
-        this.successMessage = 'Document translated successfully!';
-        this.isTranslating = false;
-        console.log('🎉 Translation completed successfully!');
-      } catch (err: any) {
-        clearInterval(progressInterval); // Clear interval on error too
-        console.error('❌ Translation failed:', err);
-        console.error('Error type:', err.constructor.name);
-        console.error('Error message:', err.message);
-        console.error('Full error:', err);
-
-        this.error = err.message || 'Failed to translate document';
-        this.isTranslating = false;
-        this.translationProgress = 0;
-      }
+      clearInterval(progressInterval);
+      this.translationProgress = 100;
+      this.translatedFile = result.blob;
+      this.translatedFileName = result.filename;
+      this.successMessage = 'Document translated successfully!';
     } catch (err: any) {
-      // Outer catch for unexpected errors
-      console.error('❌ Unexpected error in translateWithAI:', err);
-      this.error = 'An unexpected error occurred. Check console for details.';
-      this.isTranslating = false;
+      clearInterval(progressInterval);
+      this.error = err.message || 'Translation failed';
       this.translationProgress = 0;
+    } finally {
+      this.isTranslating = false;
     }
   }
 
@@ -247,7 +363,6 @@ export class TranslationComponent implements OnInit {
   }
 
   uploadTranslatedToPhrase(): void {
-    // Future implementation: Upload translated file back to Phrase TMS
     alert('Upload to Phrase TMS will be implemented');
   }
 
@@ -266,5 +381,7 @@ export class TranslationComponent implements OnInit {
     this.translationProgress = 0;
     this.error = null;
     this.successMessage = null;
+    // Re-fetch the job file after reset
+    this.downloadOriginalFile();
   }
 }
