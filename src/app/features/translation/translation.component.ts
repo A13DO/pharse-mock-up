@@ -157,7 +157,23 @@ export class TranslationComponent implements OnInit {
   }
 
   async translateWithAI(): Promise<void> {
-    if (!this.selectedModel || !this.originalFile || this.isTranslating) return;
+    if (!this.selectedModel || !this.originalFile || this.isTranslating) {
+      console.log('⚠️ Translation blocked:', {
+        hasModel: !!this.selectedModel,
+        hasFile: !!this.originalFile,
+        isTranslating: this.isTranslating,
+      });
+      return;
+    }
+
+    console.log('🔥 Starting AI translation process...');
+    console.log(
+      'Selected model:',
+      this.selectedModel.name,
+      '(' + this.selectedModel.id + ')',
+    );
+    console.log('Original file:', this.originalFile.name);
+    console.log('Target language:', this.job?.targetLang);
 
     this.isTranslating = true;
     this.translationProgress = 0;
@@ -169,6 +185,8 @@ export class TranslationComponent implements OnInit {
         ? `${this.translationPrompt}\n\nAdditional instructions: ${this.customInstructions}`
         : this.translationPrompt;
 
+      console.log('📝 Full prompt:', fullPrompt);
+
       // Simulate progress
       const progressInterval = setInterval(() => {
         if (this.translationProgress < 90) {
@@ -176,24 +194,42 @@ export class TranslationComponent implements OnInit {
         }
       }, 500);
 
-      const result = await this.translationService.translateDocument(
-        this.originalFile,
-        this.selectedModel.id,
-        fullPrompt,
-      );
+      try {
+        console.log('⏳ Calling translation service...');
+        const result = await this.translationService.translateDocument(
+          this.originalFile,
+          this.selectedModel.id,
+          fullPrompt,
+          'en', // source language
+          this.job?.targetLang, // target language
+        );
+        console.log('✅ Translation service returned result:', result);
 
-      clearInterval(progressInterval);
-      this.translationProgress = 100;
+        clearInterval(progressInterval);
+        this.translationProgress = 100;
 
-      this.translatedFile = result.file;
-      this.translatedFileName = result.filename;
-      this.successMessage = 'Document translated successfully!';
-      this.isTranslating = false;
+        this.translatedFile = result.file;
+        this.translatedFileName = result.filename;
+        this.successMessage = 'Document translated successfully!';
+        this.isTranslating = false;
+        console.log('🎉 Translation completed successfully!');
+      } catch (err: any) {
+        clearInterval(progressInterval); // Clear interval on error too
+        console.error('❌ Translation failed:', err);
+        console.error('Error type:', err.constructor.name);
+        console.error('Error message:', err.message);
+        console.error('Full error:', err);
+
+        this.error = err.message || 'Failed to translate document';
+        this.isTranslating = false;
+        this.translationProgress = 0;
+      }
     } catch (err: any) {
-      this.error = err.message || 'Failed to translate document';
+      // Outer catch for unexpected errors
+      console.error('❌ Unexpected error in translateWithAI:', err);
+      this.error = 'An unexpected error occurred. Check console for details.';
       this.isTranslating = false;
       this.translationProgress = 0;
-      console.error('Translation error:', err);
     }
   }
 

@@ -7,6 +7,10 @@ A modern Angular 19 application for interacting with the Phrase TMS (Translation
 - 🔐 **API Token Management** - Securely store and manage your Phrase API token
 - 📁 **Project Management** - View all projects with detailed information
 - ➕ **Create Projects** - Create new translation projects with full configuration
+- 🤖 **AI Translation** - Real AI-powered document translation with OpenAI, Anthropic, and Google Cloud
+- ⚡ **AI DOCX Translation** - NEW! Standalone DOCX translator with multiple AI providers (Anthropic Claude, OpenAI GPT-4o, Google Gemini)
+- 🎨 **Clean UI** - Minimal, responsive design using SCSS
+- 🚀 **Angular 19** - Built with standalone components and modern Angular features
 - 🎨 **Clean UI** - Minimal, responsive design using SCSS
 - 🚀 **Angular 19** - Built with standalone components and modern Angular features
 
@@ -100,6 +104,95 @@ src/
 3. **Start using the application:**
    - Go to **Projects** to view all your translation projects
    - Click **Create New Project** to add a new project
+
+---
+
+## AI-Powered Translation
+
+This application includes **real AI translation** functionality using OpenAI, Anthropic, and Google Cloud APIs.
+
+### Quick Start
+
+1. **Configure API Keys:**
+   - Navigate to **Settings** in the application
+   - Add at least one AI service API key:
+     - **OpenAI**: Get from [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+     - **Anthropic**: Get from [console.anthropic.com](https://console.anthropic.com/)
+     - **Google Cloud**: Get from [console.cloud.google.com](https://console.cloud.google.com/)
+
+2. **Translate Documents:**
+   - Open any job in a project
+   - Download the original file
+   - Select an AI model (GPT-4, Claude 3, Gemini)
+   - Customize the translation prompt
+   - Click "Translate with AI"
+   - Download the translated file
+
+### Supported AI Models
+
+- **GPT-4** (OpenAI) - Best quality, higher cost (~$0.03/1K tokens)
+- **GPT-3.5 Turbo** (OpenAI) - Fast and economical (~$0.002/1K tokens)
+- **Claude 3 Opus** (Anthropic) - Advanced reasoning
+- **Claude 3 Sonnet** (Anthropic) - Balanced performance (~$0.015/1K tokens)
+- **Gemini Pro** (Google) - Competitive pricing
+
+### Features
+
+✅ **Real API Integration** - Direct calls to AI services, no mock code  
+✅ **File Upload** - Download from Phrase TMS, translate, and re-upload  
+✅ **Custom Prompts** - Full control over translation instructions  
+✅ **Multiple Providers** - Switch between OpenAI, Anthropic, and Google  
+✅ **Secure Storage** - API keys stored locally in browser
+
+📖 **[Read the complete AI Translation Guide](AI_TRANSLATION_GUIDE.md)** for detailed setup, API usage, cost estimation, and troubleshooting.
+
+---
+
+## ⚡ AI DOCX Translation (NEW!)
+
+A powerful standalone Angular 19 component for translating DOCX files using multiple AI providers.
+
+### Quick Start
+
+1. **Install dependencies:**
+
+   ```bash
+   # Run the installation script
+   ./install-ai-translation.ps1
+
+   # Or install manually
+   npm install mammoth docx @types/mammoth --save-dev
+   ```
+
+2. **Navigate to AI Translation:**
+   - Open the app at `http://localhost:4200/ai-translate`
+   - Or click "AI Translation" in the sidebar
+
+3. **Get API Keys:**
+   - **Anthropic Claude**: https://console.anthropic.com/
+   - **OpenAI GPT-4o**: https://platform.openai.com/api-keys
+   - **Google Gemini**: https://aistudio.google.com/app/apikey
+
+### Features
+
+- ✅ **Multiple AI Providers** - Anthropic Claude Sonnet 4, OpenAI GPT-4o, Google Gemini 1.5 Pro
+- ✅ **Smart DOCX Processing** - Extract text, translate, rebuild with formatting
+- ✅ **Formatting Preservation** - Maintains H1/H2/H3 headings and **bold** text
+- ✅ **Drag & Drop** - Simple file upload interface
+- ✅ **Quick Prompts** - Pre-configured translation examples
+- ✅ **Dark Theme** - Provider-specific accent colors
+- ✅ **localStorage** - API keys persist across sessions
+- ✅ **Progress Tracking** - 3-step visual progress (Reading → Translating → Building)
+
+### Supported Models
+
+| Provider  | Model                    | Max Tokens | Accent Color |
+| --------- | ------------------------ | ---------- | ------------ |
+| Anthropic | claude-sonnet-4-20250514 | 8192       | #c96442      |
+| OpenAI    | gpt-4o                   | 8192       | #10a37f      |
+| Google    | gemini-1.5-pro           | Auto       | #4285f4      |
+
+📖 **[Read the complete DOCX Translation Guide](AI_DOCX_TRANSLATION.md)** for detailed documentation, API configuration, CORS handling, and troubleshooting.
 
 ---
 

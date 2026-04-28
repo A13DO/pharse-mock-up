@@ -22,11 +22,18 @@ export class SettingsComponent implements OnInit {
 
   settingsForm!: FormGroup;
   showToken = false;
+  showOpenAIKey = false;
+  showAnthropicKey = false;
+  showGoogleKey = false;
   saveSuccess = false;
+  aiSaveSuccess = false;
 
   ngOnInit(): void {
     this.settingsForm = this.fb.group({
       apiToken: ['', Validators.required],
+      openaiApiKey: [''],
+      anthropicApiKey: [''],
+      googleApiKey: [''],
     });
 
     // Load existing token (masked)
@@ -35,6 +42,26 @@ export class SettingsComponent implements OnInit {
         apiToken: this.authService.getMaskedToken(),
       });
     }
+
+    // Load AI API keys
+    this.loadAIKeys();
+  }
+
+  loadAIKeys(): void {
+    const openaiKey = localStorage.getItem('openai_api_key');
+    const anthropicKey = localStorage.getItem('anthropic_api_key');
+    const googleKey = localStorage.getItem('google_api_key');
+
+    this.settingsForm.patchValue({
+      openaiApiKey: openaiKey ? this.maskApiKey(openaiKey) : '',
+      anthropicApiKey: anthropicKey ? this.maskApiKey(anthropicKey) : '',
+      googleApiKey: googleKey ? this.maskApiKey(googleKey) : '',
+    });
+  }
+
+  maskApiKey(key: string): string {
+    if (key.length <= 8) return key;
+    return key.substring(0, 4) + '***' + key.substring(key.length - 4);
   }
 
   toggleTokenVisibility(): void {
@@ -51,6 +78,33 @@ export class SettingsComponent implements OnInit {
       if (this.authService.hasToken()) {
         this.settingsForm.patchValue({
           apiToken: this.authService.getMaskedToken(),
+        });
+      }
+    }
+  }
+
+  toggleAIKeyVisibility(provider: 'openai' | 'anthropic' | 'google'): void {
+    const showProperty =
+      `show${provider.charAt(0).toUpperCase() + provider.slice(1)}Key` as
+        | 'showOpenAIKey'
+        | 'showAnthropicKey'
+        | 'showGoogleKey';
+    const formField = `${provider}ApiKey`;
+
+    this[showProperty] = !this[showProperty];
+
+    if (this[showProperty]) {
+      const actualKey = localStorage.getItem(`${provider}_api_key`);
+      if (actualKey) {
+        this.settingsForm.patchValue({
+          [formField]: actualKey,
+        });
+      }
+    } else {
+      const actualKey = localStorage.getItem(`${provider}_api_key`);
+      if (actualKey) {
+        this.settingsForm.patchValue({
+          [formField]: this.maskApiKey(actualKey),
         });
       }
     }
@@ -83,6 +137,48 @@ export class SettingsComponent implements OnInit {
       this.authService.clearToken();
       this.settingsForm.reset();
       this.showToken = false;
+    }
+  }
+
+  saveAIKeys(): void {
+    const openaiKey = this.settingsForm.value.openaiApiKey;
+    const anthropicKey = this.settingsForm.value.anthropicApiKey;
+    const googleKey = this.settingsForm.value.googleApiKey;
+
+    // Save only if not masked
+    if (openaiKey && !openaiKey.includes('***')) {
+      localStorage.setItem('openai_api_key', openaiKey);
+    }
+    if (anthropicKey && !anthropicKey.includes('***')) {
+      localStorage.setItem('anthropic_api_key', anthropicKey);
+    }
+    if (googleKey && !googleKey.includes('***')) {
+      localStorage.setItem('google_api_key', googleKey);
+    }
+
+    this.aiSaveSuccess = true;
+    this.showOpenAIKey = false;
+    this.showAnthropicKey = false;
+    this.showGoogleKey = false;
+
+    // Reload masked keys
+    this.loadAIKeys();
+
+    setTimeout(() => {
+      this.aiSaveSuccess = false;
+    }, 3000);
+  }
+
+  clearAIKeys(): void {
+    if (confirm('Are you sure you want to clear all AI API keys?')) {
+      localStorage.removeItem('openai_api_key');
+      localStorage.removeItem('anthropic_api_key');
+      localStorage.removeItem('google_api_key');
+      this.settingsForm.patchValue({
+        openaiApiKey: '',
+        anthropicApiKey: '',
+        googleApiKey: '',
+      });
     }
   }
 }

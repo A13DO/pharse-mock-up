@@ -38,6 +38,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'ai-translate',
+    loadComponent: () =>
+      import('./translation/translation.component').then(
+        (m) => m.TranslationComponent,
+      ),
+  },
+  {
     path: 'settings',
     loadComponent: () =>
       import('./features/settings/settings.component').then(

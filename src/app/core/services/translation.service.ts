@@ -105,28 +105,47 @@ export class TranslationService {
    * @param file - The document file to translate
    * @param model - AI model ID
    * @param prompt - Translation instructions/prompt
+   * @param sourceLang - Source language (optional)
+   * @param targetLang - Target language (optional)
    * @returns Promise with translated document
    */
   async translateDocument(
     file: File,
     model: string,
     prompt: string,
+    sourceLang?: string,
+    targetLang?: string,
   ): Promise<DocumentTranslationResponse> {
-    const token = this.authService.getToken();
-    if (!token) {
-      throw new Error('Authentication token is required');
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('model', model);
-    formData.append('prompt', prompt);
+    // Determine which provider to use based on model
+    const provider = this.getProviderFromModel(model);
 
     try {
-      // In production, this would call your actual AI translation API
-      // For now, we'll simulate the translation with a mock response
-      const result = await this.mockDocumentTranslation(file, model, prompt);
-      return result;
+      switch (provider) {
+        case 'openai':
+          return await this.translateWithOpenAI(
+            file,
+            model,
+            prompt,
+            targetLang,
+          );
+        case 'anthropic':
+          return await this.translateWithAnthropic(
+            file,
+            model,
+            prompt,
+            targetLang,
+          );
+        case 'google':
+          return await this.translateWithGoogle(
+            file,
+            model,
+            prompt,
+            sourceLang,
+            targetLang,
+          );
+        default:
+          throw new Error(`Unsupported AI provider: ${provider}`);
+      }
     } catch (error) {
       console.error('Document translation error:', error);
       throw error;
@@ -134,33 +153,291 @@ export class TranslationService {
   }
 
   /**
-   * Mock document translation for development/testing
-   * Simulates AI document translation with a delay
+   * Determine AI provider from model ID
    */
-  private async mockDocumentTranslation(
+  private getProviderFromModel(
+    model: string,
+  ): 'openai' | 'anthropic' | 'google' {
+    if (model.startsWith('gpt')) return 'openai';
+    if (model.startsWith('claude')) return 'anthropic';
+    if (model.startsWith('gemini')) return 'google';
+    return 'openai'; // default
+  }
+
+  /**
+   * Get API key from localStorage or environment
+   */
+  private getApiKey(provider: 'openai' | 'anthropic' | 'google'): string {
+    const storageKey = `${provider}_api_key`;
+    return localStorage.getItem(storageKey) || '';
+  }
+
+  /**
+   * Read file as text
+   */
+  private async readFileAsText(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  }
+
+  /**
+   * Read file as base64
+   */
+  private async readFileAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /**
+   * Translate document using OpenAI API
+   */
+  private async translateWithOpenAI(
     file: File,
     model: string,
     prompt: string,
+    targetLang?: string,
   ): Promise<DocumentTranslationResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Create a mock translated file (in production, this would be the actual translated document)
-        const mockContent = `Translated by ${model}\n\nOriginal file: ${file.name}\nPrompt: ${prompt}\n\nThis is a mock translation. In production, this would be the actual translated document from the AI model.`;
-        const blob = new Blob([mockContent], { type: file.type });
+    console.log('🚀 Starting OpenAI translation...');
+    console.log('Model:', model);
+    console.log('Target Language:', targetLang);
+    console.log('File:', file.name, 'Size:', file.size, 'bytes');
 
-        const originalName = file.name;
-        const nameParts = originalName.split('.');
-        const extension = nameParts.pop();
-        const baseName = nameParts.join('.');
-        const translatedName = `${baseName}_translated.${extension}`;
+    const apiKey = this.getApiKey('openai');
+    if (!apiKey) {
+      console.error('❌ No OpenAI API key found in localStorage');
+      throw new Error(
+        'OpenAI API key not configured. Please add it in Settings.',
+      );
+    }
+    console.log('✅ API key found:', apiKey.substring(0, 10) + '...');
 
-        resolve({
-          file: blob,
-          filename: translatedName,
-          model: model,
-        });
-      }, 2000); // Simulate API delay
+    // Read file content
+    console.log('📖 Reading file content...');
+    const fileContent = await this.readFileAsText(file);
+    console.log(
+      '✅ File read successfully. Content length:',
+      fileContent.length,
+      'characters',
+    );
+
+    const messages = [
+      {
+        role: 'system',
+        content:
+          'You are a professional translator. Translate documents accurately while preserving formatting and structure.',
+      },
+      {
+        role: 'user',
+        content: `${prompt}\n\nDocument content:\n${fileContent}`,
+      },
+    ];
+
+    const requestBody = {
+      model: model,
+      messages: messages,
+      temperature: 0.3,
+      max_tokens: 4000,
+    };
+
+    console.log('📤 Sending request to OpenAI API...');
+    console.log('Request URL:', 'https://api.openai.com/v1/chat/completions');
+    console.log(
+      'Request body:',
+      JSON.stringify(requestBody).substring(0, 200) + '...',
+    );
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
     });
+
+    console.log(
+      '📥 Response received. Status:',
+      response.status,
+      response.statusText,
+    );
+
+    if (!response.ok) {
+      console.error('❌ OpenAI API request failed');
+      let errorMessage = response.statusText;
+      try {
+        const error = await response.json();
+        console.error('Error details:', error);
+        errorMessage = error.error?.message || response.statusText;
+      } catch (e) {
+        console.error('Could not parse error response:', e);
+      }
+      throw new Error(`OpenAI API error: ${errorMessage}`);
+    }
+
+    console.log('✅ API request successful. Parsing response...');
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('❌ Unexpected response format:', data);
+      throw new Error('Unexpected response format from OpenAI API');
+    }
+
+    const translatedText = data.choices[0].message.content;
+    console.log(
+      '✅ Translation completed. Length:',
+      translatedText.length,
+      'characters',
+    );
+
+    // Create translated file blob
+    const blob = new Blob([translatedText], { type: file.type });
+    const originalName = file.name;
+    const nameParts = originalName.split('.');
+    const extension = nameParts.pop();
+    const baseName = nameParts.join('.');
+    const translatedName = `${baseName}_translated_${targetLang || 'target'}.${extension}`;
+
+    return {
+      file: blob,
+      filename: translatedName,
+      model: model,
+    };
+  }
+
+  /**
+   * Translate document using Anthropic Claude API
+   */
+  private async translateWithAnthropic(
+    file: File,
+    model: string,
+    prompt: string,
+    targetLang?: string,
+  ): Promise<DocumentTranslationResponse> {
+    const apiKey = this.getApiKey('anthropic');
+    if (!apiKey) {
+      throw new Error(
+        'Anthropic API key not configured. Please add it in Settings.',
+      );
+    }
+
+    // Read file content
+    const fileContent = await this.readFileAsText(file);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 4096,
+        messages: [
+          {
+            role: 'user',
+            content: `${prompt}\n\nDocument content:\n${fileContent}`,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        `Anthropic API error: ${error.error?.message || response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    const translatedText = data.content[0].text;
+
+    // Create translated file blob
+    const blob = new Blob([translatedText], { type: file.type });
+    const originalName = file.name;
+    const nameParts = originalName.split('.');
+    const extension = nameParts.pop();
+    const baseName = nameParts.join('.');
+    const translatedName = `${baseName}_translated_${targetLang || 'target'}.${extension}`;
+
+    return {
+      file: blob,
+      filename: translatedName,
+      model: model,
+    };
+  }
+
+  /**
+   * Translate document using Google Cloud Translation API
+   */
+  private async translateWithGoogle(
+    file: File,
+    model: string,
+    prompt: string,
+    sourceLang?: string,
+    targetLang?: string,
+  ): Promise<DocumentTranslationResponse> {
+    const apiKey = this.getApiKey('google');
+    if (!apiKey) {
+      throw new Error(
+        'Google Cloud API key not configured. Please add it in Settings.',
+      );
+    }
+
+    // Read file content
+    const fileContent = await this.readFileAsText(file);
+
+    const response = await fetch(
+      `https://translation.googleapis.com/v3/projects/YOUR_PROJECT_ID/locations/global:translateText?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [fileContent],
+          sourceLanguageCode: sourceLang || 'en',
+          targetLanguageCode: targetLang || 'es',
+          mimeType: 'text/plain',
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        `Google Cloud API error: ${error.error?.message || response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    const translatedText = data.translations[0].translatedText;
+
+    // Create translated file blob
+    const blob = new Blob([translatedText], { type: file.type });
+    const originalName = file.name;
+    const nameParts = originalName.split('.');
+    const extension = nameParts.pop();
+    const baseName = nameParts.join('.');
+    const translatedName = `${baseName}_translated_${targetLang || 'target'}.${extension}`;
+
+    return {
+      file: blob,
+      filename: translatedName,
+      model: model,
+    };
   }
 
   /**

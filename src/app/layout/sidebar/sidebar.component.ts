@@ -15,6 +15,7 @@ export class SidebarComponent {
 
   menuItems = [
     { path: '/projects', label: 'Projects', icon: 'pi pi-folder' },
+    { path: '/ai-translate', label: 'AI Translation', icon: 'pi pi-bolt' },
     // { path: '/projects/create', label: 'Create Project', icon: 'pi pi-plus' },
     { path: '/settings', label: 'Settings', icon: 'pi pi-cog' },
   ];
