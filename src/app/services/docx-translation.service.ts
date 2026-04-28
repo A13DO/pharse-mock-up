@@ -2,137 +2,57 @@ import { Injectable } from '@angular/core';
 import * as mammoth from 'mammoth';
 import { Document, Paragraph, TextRun, HeadingLevel, Packer } from 'docx';
 
-export type Provider = 'anthropic' | 'openai' | 'gemini';
+export type Provider = 'anthropic' | 'openai' | 'gemini' | 'groq';
 
-interface ProviderConfig {
-  url: string;
-  buildRequest: (
-    text: string,
-    prompt: string,
-    apiKey: string,
-  ) => {
-    url: string;
-    headers: Record<string, string>;
-    body: any;
-  };
-  extractResponse: (data: any) => string;
-}
+const PROXY_BASE = 'http://localhost:3001';
+
+const SYSTEM_PROMPT =
+  'You are a professional translation assistant. ' +
+  'Return ONLY the translated document in markdown format. ' +
+  'Use # for H1, ## for H2, ### for H3, **bold** for bold text. ' +
+  'No preamble, no commentary, no explanations.';
 
 @Injectable({
   providedIn: 'root',
 })
 export class DocxTranslationService {
-  private providerConfigs: Record<Provider, ProviderConfig> = {
-    anthropic: {
-      url: 'https://api.anthropic.com/v1/messages',
-      buildRequest: (text: string, prompt: string, apiKey: string) => ({
-        url: 'https://api.anthropic.com/v1/messages',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: {
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 8192,
-          system: prompt,
-          messages: [
-            {
-              role: 'user',
-              content: text,
-            },
-          ],
-        },
-      }),
-      extractResponse: (data: any) => data.content[0].text,
-    },
-    openai: {
-      url: 'https://api.openai.com/v1/chat/completions',
-      buildRequest: (text: string, prompt: string, apiKey: string) => ({
-        url: 'https://api.openai.com/v1/chat/completions',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: {
-          model: 'gpt-4o',
-          max_tokens: 8192,
-          messages: [
-            {
-              role: 'system',
-              content: prompt,
-            },
-            {
-              role: 'user',
-              content: text,
-            },
-          ],
-        },
-      }),
-      extractResponse: (data: any) => data.choices[0].message.content,
-    },
-    gemini: {
-      url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
-      buildRequest: (text: string, prompt: string, apiKey: string) => ({
-        url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: {
-          contents: [
-            {
-              parts: [{ text }],
-            },
-          ],
-          systemInstruction: {
-            parts: [{ text: prompt }],
-          },
-        },
-      }),
-      extractResponse: (data: any) => data.candidates[0].content.parts[0].text,
-    },
-  };
-
-  /**
-   * Translate a DOCX document using the specified AI provider
-   */
   async translateDocument(
     file: File,
     customPrompt: string,
     provider: Provider,
     apiKey: string,
+    model = '',
   ): Promise<{ blob: Blob; filename: string }> {
-    console.log('🚀 Starting document translation...');
-    console.log('Provider:', provider);
-    console.log('File:', file.name, file.size, 'bytes');
+    console.log(
+      '🚀 Starting translation — provider:',
+      provider,
+      '— file:',
+      file.name,
+    );
 
-    // Step 1: Extract text from DOCX
-    console.log('📖 Step 1: Extracting text from DOCX...');
+    // Step 1: Extract plain text via mammoth
+    console.log('📖 Extracting text from DOCX...');
     const extractedText = await this.extractTextFromDocx(file);
-    console.log('✅ Extracted', extractedText.length, 'characters');
+    console.log('✅ Extracted', extractedText.length, 'chars');
 
-    // Step 2: Call AI provider
-    console.log('🤖 Step 2: Calling', provider, 'API...');
-    const translatedText = await this.callAIProvider(
-      extractedText,
-      customPrompt,
+    // Step 2: Call AI
+    console.log('🤖 Calling', provider, 'API...');
+    const userMessage = `INSTRUCTIONS: ${customPrompt}\n\nDOCUMENT:\n${extractedText}`;
+    const translatedText = await this.callProvider(
       provider,
       apiKey,
+      userMessage,
+      model,
     );
-    console.log(
-      '✅ Received translation:',
-      translatedText.length,
-      'characters',
-    );
+    console.log('✅ Translation received:', translatedText.length, 'chars');
 
-    // Step 3: Build new DOCX with formatting
-    console.log('📝 Step 3: Building DOCX with formatting...');
+    // Step 3: Rebuild DOCX
+    console.log('📝 Building DOCX...');
     const blob = await this.buildDocx(translatedText);
-    console.log('✅ DOCX created');
+    console.log('✅ DOCX ready');
 
-    const originalName = file.name.replace('.docx', '');
+    const originalName = file.name.replace(/\.docx$/i, '');
     const filename = `${originalName}_translated_${provider}.docx`;
-
     return { blob, filename };
   }
 
@@ -158,72 +78,113 @@ export class DocxTranslationService {
     });
   }
 
-  /**
-   * Call the AI provider API
-   */
-  private async callAIProvider(
-    text: string,
-    prompt: string,
+  private async callProvider(
     provider: Provider,
     apiKey: string,
+    userMessage: string,
+    model: string,
   ): Promise<string> {
-    const config = this.providerConfigs[provider];
-    const request = config.buildRequest(text, prompt, apiKey);
+    let url: string;
+    let headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    let body: unknown;
+    let extractFn: (data: any) => string;
 
-    console.log('📤 Request URL:', request.url);
-
-    try {
-      const response = await fetch(request.url, {
-        method: 'POST',
-        headers: request.headers,
-        body: JSON.stringify(request.body),
-      });
-
-      console.log('📥 Response status:', response.status);
-
-      if (!response.ok) {
-        let errorMessage = `${provider} API error: ${response.status} ${response.statusText}`;
-
-        try {
-          const errorData = await response.json();
-          console.error('Error details:', errorData);
-
-          // Provider-specific error messages
-          if (provider === 'anthropic' && errorData.error) {
-            errorMessage = `Anthropic API error: ${errorData.error.message || errorData.error.type}`;
-          } else if (provider === 'openai' && errorData.error) {
-            errorMessage = `OpenAI API error: ${errorData.error.message}`;
-          } else if (provider === 'gemini' && errorData.error) {
-            errorMessage = `Gemini API error: ${errorData.error.message}`;
-          }
-
-          // Add hint for authentication errors
-          if (response.status === 401 || response.status === 403) {
-            errorMessage += ' (Check your API key)';
-          }
-        } catch (e) {
-          console.error('Could not parse error response');
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      const translatedText = config.extractResponse(data);
-
-      if (!translatedText) {
-        throw new Error(
-          `Failed to extract translation from ${provider} response`,
-        );
-      }
-
-      return translatedText;
-    } catch (error: any) {
-      if (error.message.includes('API error')) {
-        throw error;
-      }
-      throw new Error(`Network error calling ${provider}: ${error.message}`);
+    if (provider === 'anthropic') {
+      // Routed through local proxy to bypass Anthropic CORS restriction
+      url = `${PROXY_BASE}/api/anthropic`;
+      body = {
+        apiKey,
+        body: {
+          model: model || 'claude-opus-4-20250514',
+          max_tokens: 4096,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: userMessage }],
+        },
+      };
+      extractFn = (d) => d.content[0].text;
+    } else if (provider === 'openai') {
+      // Routed through local proxy to bypass OpenAI CORS restriction
+      url = `${PROXY_BASE}/api/openai`;
+      body = {
+        apiKey,
+        body: {
+          model: model || 'gpt-4o',
+          max_tokens: 4096,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userMessage },
+          ],
+        },
+      };
+      extractFn = (d) => d.choices[0].message.content;
+    } else if (provider === 'gemini') {
+      const geminiModel = model || 'gemini-1.5-pro';
+      url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
+      body = {
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+        generationConfig: { maxOutputTokens: 4096 },
+      };
+      extractFn = (d) => d.candidates[0].content.parts[0].text;
+    } else {
+      // groq — direct browser call, CORS-enabled
+      url = 'https://api.groq.com/openai/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${apiKey}`;
+      body = {
+        model: model || 'llama-3.3-70b-versatile',
+        max_tokens: 4096,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userMessage },
+        ],
+      };
+      extractFn = (d) => d.choices[0].message.content;
     }
+
+    console.log('📤 POST', url);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+    } catch (err: any) {
+      throw new Error(`Network error: ${err.message}`);
+    }
+
+    console.log('📥 Status:', response.status);
+
+    if (!response.ok) {
+      let detail = '';
+      try {
+        const errData = await response.json();
+        detail =
+          errData?.error?.message ||
+          errData?.error?.status ||
+          JSON.stringify(errData);
+      } catch {}
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Invalid API key. Check your key and try again.');
+      }
+      if (response.status === 429) {
+        throw new Error('Rate limit reached. Wait a moment and retry.');
+      }
+      if (response.status === 400) {
+        throw new Error('Bad request. The document may be too large.');
+      }
+      throw new Error(
+        `API error ${response.status}: ${detail || response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    const text = extractFn(data);
+    if (!text) throw new Error(`Empty response from ${provider}`);
+    return text;
   }
 
   /**

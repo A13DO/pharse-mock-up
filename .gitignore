@@ -11,6 +11,9 @@
 npm-debug.log
 yarn-error.log
 
+# Proxy config (may contain API keys)
+proxy.conf.json
+
 # IDEs and editors
 .idea/
 .project

@@ -12,11 +12,50 @@
             <button class="provider-card" [class.active]="selectedProvider() === provider.id"
                 [style.--provider-color]="provider.color" (click)="selectProvider(provider.id)"
                 [disabled]="isProcessing()">
-                <div class="provider-name">{{ provider.name }}</div>
+                <div class="provider-card-header">
+                    <div class="provider-name">{{ provider.name }}</div>
+                    @if (provider.freeTier) {
+                    <span class="free-badge">Free tier</span>
+                    } @else {
+                    <span class="paid-badge">Paid</span>
+                    }
+                </div>
+                <div class="provider-model">{{ provider.model }}</div>
+                <a class="provider-link" [href]="provider.keyUrl" target="_blank" rel="noopener"
+                    (click)="$event.stopPropagation()">Get API key →</a>
                 <div class="provider-indicator"></div>
             </button>
             }
         </div>
+    </div>
+
+    <!-- Model Selector -->
+    @if (selectedProviderInfo()?.models?.length) {
+    <div class="model-section">
+        <h2 class="section-title">Model</h2>
+        <div class="model-cards">
+            @for (model of selectedProviderInfo()!.models; track model.id) {
+            <button class="model-card" [class.active]="selectedModel() === model.id"
+                [style.--provider-color]="selectedProviderInfo()?.color" (click)="selectModel(model.id)"
+                [disabled]="isProcessing()">
+                <div class="model-name">{{ model.name }}</div>
+                <div class="model-description">{{ model.description }}</div>
+            </button>
+            }
+        </div>
+    </div>
+    }
+
+    <!-- Extraction mode badge -->
+    <div class="extraction-info">
+        <span class="extraction-badge" title="Text extracted locally via mammoth, sent as plain text">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                <polyline points="14 2 14 8 20 8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            Text extraction (mammoth)
+        </span>
     </div>
 
     <!-- API Key Input -->

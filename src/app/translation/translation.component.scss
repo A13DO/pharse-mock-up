@@ -114,6 +114,78 @@
   z-index: 1;
 }
 
+.provider-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.provider-model {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: "Courier New", monospace;
+  margin-bottom: 0.5rem;
+}
+
+.provider-link {
+  font-size: 0.7rem;
+  color: var(--provider-color);
+  text-decoration: none;
+  opacity: 0.8;
+  position: relative;
+  z-index: 2;
+
+  &:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+}
+
+.free-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.paid-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+/* Extraction badge */
+.extraction-info {
+  margin-bottom: 2rem;
+}
+
+.extraction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  cursor: help;
+}
+
 .provider-indicator {
   position: absolute;
   top: 10px;
@@ -127,7 +199,61 @@
   transition: all 0.3s ease;
   box-shadow: 0 0 10px var(--provider-color);
 }
+/* Model Section */
+.model-section {
+  margin-bottom: 2rem;
+}
 
+.model-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.model-card {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--text-muted);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.active {
+    border-color: var(--provider-color);
+    background: color-mix(
+      in srgb,
+      var(--provider-color) 10%,
+      var(--bg-secondary)
+    );
+    box-shadow:
+      0 0 0 1px var(--provider-color),
+      0 0 10px color-mix(in srgb, var(--provider-color) 20%, transparent);
+  }
+}
+
+.model-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.model-description {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
 /* API Key Section */
 .api-key-section {
   margin-bottom: 2rem;

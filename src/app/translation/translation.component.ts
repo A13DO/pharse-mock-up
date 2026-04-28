@@ -6,12 +6,22 @@ import {
   Provider,
 } from '../services/docx-translation.service';
 
+interface ModelOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
 interface ProviderInfo {
   id: Provider;
   name: string;
+  model: string;
   color: string;
   keyLabel: string;
   keyPlaceholder: string;
+  keyUrl: string;
+  freeTier?: boolean;
+  models: ModelOption[];
 }
 
 type ProgressStep =
@@ -34,23 +44,105 @@ export class TranslationComponent {
     {
       id: 'anthropic',
       name: 'Anthropic Claude',
+      model: 'claude-opus-4-20250514',
       color: '#c96442',
       keyLabel: 'Anthropic API Key',
       keyPlaceholder: 'sk-ant-...',
+      keyUrl: 'https://console.anthropic.com',
+      freeTier: false,
+      models: [
+        {
+          id: 'claude-opus-4-20250514',
+          name: 'Claude Opus 4',
+          description: 'Most capable',
+        },
+        {
+          id: 'claude-sonnet-4-20250514',
+          name: 'Claude Sonnet 4',
+          description: 'Fast & cost-effective',
+        },
+      ],
     },
     {
       id: 'openai',
-      name: 'OpenAI GPT-4',
+      name: 'OpenAI ChatGPT',
+      model: 'gpt-4o',
       color: '#10a37f',
       keyLabel: 'OpenAI API Key',
       keyPlaceholder: 'sk-proj-...',
+      keyUrl: 'https://platform.openai.com/api-keys',
+      freeTier: false,
+      models: [
+        {
+          id: 'gpt-4o',
+          name: 'GPT-4o',
+          description: 'Most capable, multimodal',
+        },
+        {
+          id: 'gpt-4o-mini',
+          name: 'GPT-4o Mini',
+          description: 'Fast & budget-friendly',
+        },
+        {
+          id: 'gpt-4-turbo',
+          name: 'GPT-4 Turbo',
+          description: 'High quality, reliable',
+        },
+      ],
     },
     {
       id: 'gemini',
       name: 'Google Gemini',
+      model: 'gemini-1.5-pro',
       color: '#4285f4',
-      keyLabel: 'Gemini API Key',
+      keyLabel: 'Google AI Studio Key',
       keyPlaceholder: 'AIza...',
+      keyUrl: 'https://aistudio.google.com/apikey',
+      freeTier: true,
+      models: [
+        {
+          id: 'gemini-1.5-pro',
+          name: 'Gemini 1.5 Pro',
+          description: 'Best quality',
+        },
+        {
+          id: 'gemini-1.5-flash',
+          name: 'Gemini 1.5 Flash',
+          description: 'Fast & free',
+        },
+        {
+          id: 'gemini-2.0-flash-exp',
+          name: 'Gemini 2.0 Flash',
+          description: 'Experimental',
+        },
+      ],
+    },
+    {
+      id: 'groq',
+      name: 'Groq',
+      model: 'llama-3.3-70b-versatile',
+      color: '#f55036',
+      keyLabel: 'Groq API Key',
+      keyPlaceholder: 'gsk_...',
+      keyUrl: 'https://console.groq.com',
+      freeTier: true,
+      models: [
+        {
+          id: 'llama-3.3-70b-versatile',
+          name: 'Llama 3.3 70B',
+          description: 'Best quality, free',
+        },
+        {
+          id: 'llama-3.1-8b-instant',
+          name: 'Llama 3.1 8B',
+          description: 'Ultra-fast, free',
+        },
+        {
+          id: 'mixtral-8x7b-32768',
+          name: 'Mixtral 8x7B',
+          description: 'Long context, free',
+        },
+      ],
     },
   ];
 
@@ -64,6 +156,7 @@ export class TranslationComponent {
 
   // Signals for reactive state
   selectedProvider = signal<Provider>('anthropic');
+  selectedModel = signal<string>('claude-opus-4-20250514');
   apiKey = signal<string>('');
   showApiKey = signal<boolean>(false);
   uploadedFile = signal<File | null>(null);
@@ -119,8 +212,12 @@ export class TranslationComponent {
   private docxService = inject(DocxTranslationService);
 
   constructor() {
-    // Load saved API keys on init
     this.loadApiKeys();
+    const savedModel = localStorage.getItem(
+      `docx_ai_model_${this.selectedProvider()}`,
+    );
+    const info = this.providers.find((p) => p.id === this.selectedProvider());
+    this.selectedModel.set(savedModel || info?.model || '');
   }
 
   /**
@@ -129,6 +226,14 @@ export class TranslationComponent {
   selectProvider(provider: Provider): void {
     this.selectedProvider.set(provider);
     this.loadApiKey(provider);
+    const savedModel = localStorage.getItem(`docx_ai_model_${provider}`);
+    const info = this.providers.find((p) => p.id === provider);
+    this.selectedModel.set(savedModel || info?.model || '');
+  }
+
+  selectModel(modelId: string): void {
+    this.selectedModel.set(modelId);
+    localStorage.setItem(`docx_ai_model_${this.selectedProvider()}`, modelId);
   }
 
   /**
@@ -246,7 +351,6 @@ export class TranslationComponent {
     this.progressStep.set('reading');
 
     try {
-      // Simulate step transitions
       setTimeout(() => this.progressStep.set('translating'), 500);
 
       const result = await this.docxService.translateDocument(
@@ -254,6 +358,7 @@ export class TranslationComponent {
         prompt,
         provider,
         apiKey,
+        this.selectedModel(),
       );
 
       this.progressStep.set('building');
