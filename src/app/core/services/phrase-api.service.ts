@@ -253,10 +253,7 @@ export class PhraseApiService {
 
   createProject(payload: CreateProjectDto): Observable<Project> {
     return this.http
-      .post<Project>(`${this.baseUrl}/v3/projects`, payload, {
-        headers: this.getHeaders(),
-        withCredentials: true,
-      })
+      .post<Project>('https://phrase.runasp.net/api/Phrase/projects', payload)
       .pipe(catchError(this.handleError));
   }
 
@@ -269,36 +266,25 @@ export class PhraseApiService {
     },
   ): Promise<any> {
     return new Promise((resolve, reject) => {
-      const token = this.authService.getToken();
-      const url = `${this.baseUrl}/v1/projects/${projectUid}/jobs`;
+      const url = `https://phrase.runasp.net/api/Jobs/projects/${projectUid}/jobs`;
 
-      const headers = new HttpHeaders({
-        Authorization: `Bearer ${token}`,
-        'Content-Disposition': `filename="${filename}"`,
-        Memsource: JSON.stringify(memsourceHeader),
-        'Content-Type': 'application/octet-stream',
-      });
+      // Create FormData for multipart/form-data request
+      const formData = new FormData();
+      formData.append('file', file, filename);
+      formData.append(
+        'targetLangsJson',
+        JSON.stringify(memsourceHeader.targetLangs),
+      );
 
-      // Read file as binary
-      const reader = new FileReader();
-      reader.onload = () => {
-        const arrayBuffer = reader.result as ArrayBuffer;
-
-        this.http
-          .post(url, arrayBuffer, {
-            headers,
-            withCredentials: true,
-            observe: 'response',
-          })
-          .pipe(catchError(this.handleError))
-          .subscribe({
-            next: (response) => resolve(response.body),
-            error: (error) => reject(error),
-          });
-      };
-
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsArrayBuffer(file);
+      this.http
+        .post(url, formData, {
+          observe: 'response',
+        })
+        .pipe(catchError(this.handleError))
+        .subscribe({
+          next: (response) => resolve(response.body),
+          error: (error) => reject(error),
+        });
     });
   }
   /**
