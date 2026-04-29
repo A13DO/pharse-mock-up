@@ -148,7 +148,7 @@ export class TranslationComponent {
 
   // Quick prompt examples
   quickPrompts = [
-    'Extract all technical terms from this document and create a TermBase table with columns: # | Source Term (English) | REQUIRED Translation (Arabic) | Category. Number each row starting from 1.',
+    'Extract and create a TermBase table with columns: # | Source Term (English) | REQUIRED Translation (Arabic) | Category. Number each row starting from 1. Extract specifically: Company names (اسماء الشركات), People names (الاشخاص), Abbreviations (الاختصارات), and Main key terms (المصطلحات الرئيسية في الملف). Use appropriate category for each term.',
     'Translate this document to Spanish while maintaining professional tone and technical accuracy.',
     'Translate to French. Keep all proper nouns and brand names unchanged.',
     'Translate to German. Preserve all formatting, bullet points, and numbered lists exactly.',
