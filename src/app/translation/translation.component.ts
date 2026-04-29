@@ -148,6 +148,7 @@ export class TranslationComponent {
 
   // Quick prompt examples
   quickPrompts = [
+    'Extract all technical terms from this document and create a TermBase table with columns: Source Term | Target Term',
     'Translate this document to Spanish while maintaining professional tone and technical accuracy.',
     'Translate to French. Keep all proper nouns and brand names unchanged.',
     'Translate to German. Preserve all formatting, bullet points, and numbered lists exactly.',
@@ -166,6 +167,11 @@ export class TranslationComponent {
   translatedBlob = signal<Blob | null>(null);
   translatedFilename = signal<string>('');
   isDragging = signal<boolean>(false);
+  filePreview = signal<string>('');
+  showPreview = signal<boolean>(false);
+  aiResponse = signal<string>('');
+  termBaseTable = signal<{ headers: string[]; rows: string[][] } | null>(null);
+  showTermBaseTable = signal<boolean>(false);
 
   // Computed values
   selectedProviderInfo = computed(() =>
@@ -315,15 +321,140 @@ export class TranslationComponent {
   /**
    * Validate and set the uploaded file
    */
-  private handleFile(file: File): void {
-    if (!file.name.endsWith('.docx')) {
-      this.errorMessage.set('Please upload a .docx file');
+  private async handleFile(file: File): Promise<void> {
+    const fileName = file.name.toLowerCase();
+    const validExtensions = ['.docx', '.mxliff', '.xliff', '.xml'];
+    const isValid = validExtensions.some((ext) => fileName.endsWith(ext));
+
+    if (!isValid) {
+      this.errorMessage.set('Please upload a .docx or .mxliff file');
       return;
     }
 
     this.uploadedFile.set(file);
     this.errorMessage.set(null);
     console.log('📎 File uploaded:', file.name);
+
+    // Extract and preview file content
+    await this.extractAndPreviewFile(file);
+  }
+
+  /**
+   * Extract and preview file content
+   */
+  private async extractAndPreviewFile(file: File): Promise<void> {
+    try {
+      const extractedText = await this.docxService.extractTextFromFile(file);
+
+      // Limit preview to first 2000 characters to keep UI responsive
+      const previewText =
+        extractedText.length > 2000
+          ? extractedText.substring(0, 2000) + '...'
+          : extractedText;
+
+      this.filePreview.set(previewText);
+      this.showPreview.set(true);
+      console.log('✅ File preview ready:', extractedText.length, 'chars');
+    } catch (error: any) {
+      console.error('❌ Preview extraction failed:', error);
+      this.errorMessage.set(`Failed to extract file content: ${error.message}`);
+      this.filePreview.set('');
+      this.showPreview.set(false);
+    }
+  }
+
+  /**
+   * Toggle preview visibility
+   */
+  togglePreview(): void {
+    this.showPreview.set(!this.showPreview());
+  }
+
+  /**
+   * Toggle TermBase table visibility
+   */
+  toggleTermBaseTable(): void {
+    this.showTermBaseTable.set(!this.showTermBaseTable());
+  }
+
+  /**
+   * Parse markdown table from AI response
+   * Supports both pipe-style tables (| col1 | col2 |) and tab-separated values
+   */
+  private parseMarkdownTable(
+    text: string,
+  ): { headers: string[]; rows: string[][] } | null {
+    const lines = text.split('\n').filter((line) => line.trim());
+
+    // Look for markdown table with | separators
+    const tableLines = lines.filter((line) => line.includes('|'));
+
+    if (tableLines.length < 2) {
+      // Try TSV format if no markdown table found
+      return this.parseTsvTable(text);
+    }
+
+    const parseRow = (line: string): string[] => {
+      return line
+        .split('|')
+        .map((cell) => cell.trim())
+        .filter((cell) => cell.length > 0);
+    };
+
+    // First line is headers
+    const headers = parseRow(tableLines[0]);
+
+    // Skip separator line (usually contains --- )
+    const dataLines = tableLines
+      .slice(1)
+      .filter((line) => !line.match(/^\|?\s*[-:]+\s*\|/));
+
+    if (dataLines.length === 0) {
+      return null;
+    }
+
+    const rows = dataLines.map((line) => parseRow(line));
+
+    // Validate that all rows have the same number of columns as headers
+    const validRows = rows.filter((row) => row.length === headers.length);
+
+    if (validRows.length === 0) {
+      return null;
+    }
+
+    return { headers, rows: validRows };
+  }
+
+  /**
+   * Parse tab-separated or comma-separated table
+   */
+  private parseTsvTable(
+    text: string,
+  ): { headers: string[]; rows: string[][] } | null {
+    const lines = text.split('\n').filter((line) => line.trim());
+
+    if (lines.length < 2) {
+      return null;
+    }
+
+    // Try tab-separated first, then comma-separated
+    const separator = lines[0].includes('\t') ? '\t' : ',';
+
+    const parseRow = (line: string): string[] => {
+      return line.split(separator).map((cell) => cell.trim());
+    };
+
+    const headers = parseRow(lines[0]);
+    const rows = lines.slice(1).map((line) => parseRow(line));
+
+    // Validate
+    const validRows = rows.filter((row) => row.length === headers.length);
+
+    if (validRows.length === 0) {
+      return null;
+    }
+
+    return { headers, rows: validRows };
   }
 
   /**
@@ -348,6 +479,8 @@ export class TranslationComponent {
 
     this.errorMessage.set(null);
     this.translatedBlob.set(null);
+    this.aiResponse.set('');
+    this.termBaseTable.set(null);
     this.progressStep.set('reading');
 
     try {
@@ -362,6 +495,22 @@ export class TranslationComponent {
       );
 
       this.progressStep.set('building');
+
+      // Store AI response and parse table if present
+      this.aiResponse.set(result.responseText);
+      const tableData = this.parseMarkdownTable(result.responseText);
+
+      if (tableData) {
+        this.termBaseTable.set(tableData);
+        this.showTermBaseTable.set(true);
+        console.log(
+          '✅ TermBase table detected:',
+          tableData.headers.length,
+          'columns,',
+          tableData.rows.length,
+          'rows',
+        );
+      }
 
       // Brief pause before completion
       setTimeout(() => {
@@ -405,6 +554,11 @@ export class TranslationComponent {
     this.errorMessage.set(null);
     this.translatedBlob.set(null);
     this.translatedFilename.set('');
+    this.filePreview.set('');
+    this.showPreview.set(false);
+    this.aiResponse.set('');
+    this.termBaseTable.set(null);
+    this.showTermBaseTable.set(false);
   }
 
   /**

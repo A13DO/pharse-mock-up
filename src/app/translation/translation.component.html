@@ -48,13 +48,13 @@
 
     <!-- Extraction mode badge -->
     <div class="extraction-info">
-        <span class="extraction-badge" title="Text extracted locally via mammoth, sent as plain text">
+        <span class="extraction-badge" title="Text extracted locally and sent as plain text to Claude">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" />
                 <polyline points="14 2 14 8 20 8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            Text extraction (mammoth)
+            Text extraction (DOCX: mammoth | MXLIFF: XML parser)
         </span>
     </div>
 
@@ -96,7 +96,7 @@
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <p class="upload-text">Drag & drop your .docx file here</p>
+            <p class="upload-text">Drag & drop your .docx or .mxliff file here</p>
             <p class="upload-subtext">or click to browse</p>
         </div>
         } @else {
@@ -111,7 +111,8 @@
                 <div class="file-size">{{ fileInfo()?.size }}</div>
             </div>
             @if (!isProcessing() && progressStep() !== 'complete') {
-            <button class="remove-file-btn" (click)="uploadedFile.set(null)">
+            <button class="remove-file-btn"
+                (click)="uploadedFile.set(null); filePreview.set(''); showPreview.set(false)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <line x1="18" y1="6" x2="6" y2="18" stroke-width="2" stroke-linecap="round" />
                     <line x1="6" y1="6" x2="18" y2="18" stroke-width="2" stroke-linecap="round" />
@@ -120,8 +121,37 @@
             }
         </div>
         }
-        <input #fileInput type="file" accept=".docx" (change)="onFileSelected($event)" style="display: none" />
+        <input #fileInput type="file" accept=".docx,.mxliff,.xliff,.xml" (change)="onFileSelected($event)"
+            style="display: none" />
     </div>
+
+    <!-- File Preview -->
+    @if (filePreview() && uploadedFile()) {
+    <div class="preview-section">
+        <div class="preview-header">
+            <h2 class="section-title">File Preview</h2>
+            <button class="preview-toggle-btn" (click)="togglePreview()" [disabled]="isProcessing()">
+                @if (showPreview()) {
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="18 15 12 9 6 15" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+                Hide
+                } @else {
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="6 9 12 15 18 9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Show
+                }
+            </button>
+        </div>
+        @if (showPreview()) {
+        <div class="preview-content">
+            <pre class="preview-text">{{ filePreview() }}</pre>
+        </div>
+        }
+    </div>
+    }
 
     <!-- Translation Prompt -->
     <div class="prompt-section">
@@ -205,6 +235,71 @@
             </button>
         </div>
     </div>
+
+    <!-- TermBase Table Preview -->
+    @if (termBaseTable()) {
+    <div class="termbase-section">
+        <div class="termbase-header">
+            <h2 class="section-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    style="vertical-align: middle; margin-right: 0.5rem;">
+                    <rect x="3" y="3" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <rect x="14" y="3" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <rect x="14" y="14" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <rect x="3" y="14" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+                TermBase Table Preview
+            </h2>
+            <button class="termbase-toggle-btn" (click)="toggleTermBaseTable()">
+                @if (showTermBaseTable()) {
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="18 15 12 9 6 15" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+                Hide
+                } @else {
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="6 9 12 15 18 9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Show
+                }
+            </button>
+        </div>
+        @if (showTermBaseTable()) {
+        <div class="termbase-content">
+            <div class="table-wrapper">
+                <table class="termbase-table">
+                    <thead>
+                        <tr>
+                            @for (header of termBaseTable()!.headers; track $index) {
+                            <th>{{ header }}</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (row of termBaseTable()!.rows; track $index) {
+                        <tr>
+                            @for (cell of row; track $index) {
+                            <td>{{ cell }}</td>
+                            }
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="termbase-info">
+                <span class="info-badge">
+                    {{ termBaseTable()!.rows.length }} rows × {{ termBaseTable()!.headers.length }} columns
+                </span>
+            </div>
+        </div>
+        }
+    </div>
+    }
     }
 
     <!-- Action Buttons -->

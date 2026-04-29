@@ -22,7 +22,7 @@ export class DocxTranslationService {
     provider: Provider,
     apiKey: string,
     model = '',
-  ): Promise<{ blob: Blob; filename: string }> {
+  ): Promise<{ blob: Blob; filename: string; responseText: string }> {
     console.log(
       '🚀 Starting translation — provider:',
       provider,
@@ -30,9 +30,9 @@ export class DocxTranslationService {
       file.name,
     );
 
-    // Step 1: Extract plain text via mammoth
-    console.log('📖 Extracting text from DOCX...');
-    const extractedText = await this.extractTextFromDocx(file);
+    // Step 1: Extract plain text (supports both DOCX and MXLIFF)
+    console.log('📖 Extracting text from file...');
+    const extractedText = await this.extractTextFromFile(file);
     console.log('✅ Extracted', extractedText.length, 'chars');
 
     // Step 2: Call AI
@@ -51,9 +51,32 @@ export class DocxTranslationService {
     const blob = await this.buildDocx(translatedText);
     console.log('✅ DOCX ready');
 
-    const originalName = file.name.replace(/\.docx$/i, '');
+    const originalName = file.name.replace(/\.(docx|mxliff|xliff|xml)$/i, '');
     const filename = `${originalName}_translated_${provider}.docx`;
-    return { blob, filename };
+    return { blob, filename, responseText: translatedText };
+  }
+
+  /**
+   * Extract text from any supported file type
+   * @param file - DOCX or MXLIFF file
+   * @returns Extracted plain text
+   */
+  async extractTextFromFile(file: File): Promise<string> {
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith('.docx')) {
+      return this.extractTextFromDocx(file);
+    } else if (
+      fileName.endsWith('.mxliff') ||
+      fileName.endsWith('.xliff') ||
+      fileName.endsWith('.xml')
+    ) {
+      return this.extractTextFromMxliff(file);
+    } else {
+      throw new Error(
+        'Unsupported file type. Please upload a .docx or .mxliff file.',
+      );
+    }
   }
 
   /**
@@ -95,6 +118,67 @@ export class DocxTranslationService {
       return result.value;
     } catch (err: any) {
       throw new Error(`mammoth failed to parse DOCX: ${err?.message || err}`);
+    }
+  }
+
+  /**
+   * Extract translatable text from MXLIFF file
+   * MXLIFF is an XML format used by translation tools
+   */
+  private async extractTextFromMxliff(file: File): Promise<string> {
+    const text = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.onerror = () =>
+        reject(new Error(`FileReader failed: ${reader.error?.message}`));
+      reader.readAsText(file, 'utf-8');
+    });
+
+    console.log('📄 MXLIFF file size:', text.length, 'chars');
+
+    if (!text || text.trim().length === 0) {
+      throw new Error('The MXLIFF file is empty.');
+    }
+
+    try {
+      // Parse XML
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(text, 'text/xml');
+
+      // Check for parsing errors
+      const parserError = xmlDoc.querySelector('parsererror');
+      if (parserError) {
+        throw new Error('Invalid XML format in MXLIFF file.');
+      }
+
+      // Extract text from <source> elements (original text to translate)
+      // In XLIFF/MXLIFF format, <source> contains the source text
+      const sourceElements = xmlDoc.querySelectorAll('source');
+
+      if (sourceElements.length === 0) {
+        throw new Error('No translatable content found in MXLIFF file.');
+      }
+
+      const extractedSegments: string[] = [];
+      sourceElements.forEach((element) => {
+        const content = element.textContent?.trim();
+        if (content) {
+          extractedSegments.push(content);
+        }
+      });
+
+      if (extractedSegments.length === 0) {
+        throw new Error('No text content found in MXLIFF source elements.');
+      }
+
+      console.log(
+        `✅ Extracted ${extractedSegments.length} segments from MXLIFF`,
+      );
+
+      // Join segments with double newlines for readability
+      return extractedSegments.join('\n\n');
+    } catch (err: any) {
+      throw new Error(`Failed to parse MXLIFF: ${err?.message || err}`);
     }
   }
 
