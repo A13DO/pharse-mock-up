@@ -148,7 +148,7 @@ export class TranslationComponent {
 
   // Quick prompt examples
   quickPrompts = [
-    'Extract all technical terms from this document and create a TermBase table with columns: Source Term | Target Term',
+    'Extract all technical terms from this document and create a TermBase table with columns: # | Source Term (English) | REQUIRED Translation (Arabic) | Category. Number each row starting from 1.',
     'Translate this document to Spanish while maintaining professional tone and technical accuracy.',
     'Translate to French. Keep all proper nouns and brand names unchanged.',
     'Translate to German. Preserve all formatting, bullet points, and numbered lists exactly.',
@@ -172,6 +172,7 @@ export class TranslationComponent {
   aiResponse = signal<string>('');
   termBaseTable = signal<{ headers: string[]; rows: string[][] } | null>(null);
   showTermBaseTable = signal<boolean>(false);
+  termBaseViewMode = signal<'table' | 'text'>('table');
 
   // Computed values
   selectedProviderInfo = computed(() =>
@@ -401,6 +402,51 @@ export class TranslationComponent {
   }
 
   /**
+   * Toggle between table and text view
+   */
+  toggleTermBaseViewMode(): void {
+    this.termBaseViewMode.set(
+      this.termBaseViewMode() === 'table' ? 'text' : 'table',
+    );
+  }
+
+  /**
+   * Generate markdown text representation of the table
+   */
+  getTableAsText(): string {
+    const table = this.termBaseTable();
+    if (!table) return '';
+
+    const lines: string[] = [];
+
+    // Header row
+    lines.push('| ' + table.headers.join(' | ') + ' |');
+
+    // Separator row
+    lines.push('|' + table.headers.map(() => '---').join('|') + '|');
+
+    // Data rows
+    table.rows.forEach((row) => {
+      lines.push('| ' + row.join(' | ') + ' |');
+    });
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Copy table text to clipboard
+   */
+  async copyTableText(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.getTableAsText());
+      console.log('✅ Table text copied to clipboard');
+    } catch (error) {
+      console.error('❌ Failed to copy:', error);
+      this.errorMessage.set('Failed to copy to clipboard');
+    }
+  }
+
+  /**
    * Parse markdown table from AI response
    * Supports both pipe-style tables (| col1 | col2 |) and tab-separated values
    */
@@ -608,6 +654,7 @@ export class TranslationComponent {
     this.aiResponse.set('');
     this.termBaseTable.set(null);
     this.showTermBaseTable.set(false);
+    this.termBaseViewMode.set('table');
   }
 
   /**
