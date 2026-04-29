@@ -378,6 +378,29 @@ export class TranslationComponent {
   }
 
   /**
+   * Update a cell value in the TermBase table
+   * @param rowIndex - Row index in the table
+   * @param colIndex - Column index in the table
+   * @param newValue - New cell value
+   */
+  updateTableCell(rowIndex: number, colIndex: number, newValue: string): void {
+    const table = this.termBaseTable();
+    if (!table) return;
+
+    // Create a new copy of the table data (immutable update)
+    const updatedRows = [...table.rows];
+    updatedRows[rowIndex] = [...updatedRows[rowIndex]];
+    updatedRows[rowIndex][colIndex] = newValue;
+
+    this.termBaseTable.set({
+      headers: table.headers,
+      rows: updatedRows,
+    });
+
+    console.log('✏️ Cell updated:', rowIndex, colIndex, newValue);
+  }
+
+  /**
    * Parse markdown table from AI response
    * Supports both pipe-style tables (| col1 | col2 |) and tab-separated values
    */
@@ -527,21 +550,47 @@ export class TranslationComponent {
 
   /**
    * Download the translated document
+   * If a TermBase table exists, rebuild DOCX from the edited table data
    */
-  downloadTranslation(): void {
-    const blob = this.translatedBlob();
+  async downloadTranslation(): Promise<void> {
+    const table = this.termBaseTable();
     const filename = this.translatedFilename();
 
-    if (!blob) return;
+    if (!filename) return;
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      let blob: Blob;
+
+      // If we have a table, rebuild the DOCX from the (possibly edited) table data
+      if (table && table.headers.length > 0 && table.rows.length > 0) {
+        console.log('📊 Rebuilding DOCX from edited table data...');
+        blob = await this.docxService.buildDocxFromTable(
+          table.headers,
+          table.rows,
+          filename,
+        );
+      } else {
+        // Use the original blob
+        const originalBlob = this.translatedBlob();
+        if (!originalBlob) return;
+        blob = originalBlob;
+      }
+
+      // Trigger download
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      console.log('✅ Download complete');
+    } catch (error: any) {
+      console.error('❌ Download failed:', error);
+      this.errorMessage.set(`Download failed: ${error.message}`);
+    }
   }
 
   /**

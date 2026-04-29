@@ -1,6 +1,17 @@
 import { Injectable } from '@angular/core';
 import * as mammoth from 'mammoth';
-import { Document, Paragraph, TextRun, HeadingLevel, Packer } from 'docx';
+import {
+  Document,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+  Packer,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  BorderStyle,
+} from 'docx';
 
 export type Provider = 'anthropic' | 'openai' | 'gemini' | 'groq';
 
@@ -380,5 +391,78 @@ export class DocxTranslationService {
     }
 
     return new Paragraph({ children: parts });
+  }
+
+  /**
+   * Build a DOCX file from table data (TermBase table)
+   * @param headers - Table header row
+   * @param rows - Table data rows
+   * @param filename - Output filename
+   * @returns Blob containing the DOCX file
+   */
+  async buildDocxFromTable(
+    headers: string[],
+    rows: string[][],
+    filename: string,
+  ): Promise<Blob> {
+    console.log('📊 Building DOCX from table data...');
+
+    // Create table rows
+    const tableRows: TableRow[] = [];
+
+    // Add header row
+    tableRows.push(
+      new TableRow({
+        children: headers.map(
+          (header) =>
+            new TableCell({
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: header, bold: true })],
+                }),
+              ],
+              shading: {
+                fill: 'E5E7EB',
+              },
+            }),
+        ),
+      }),
+    );
+
+    // Add data rows
+    rows.forEach((row) => {
+      tableRows.push(
+        new TableRow({
+          children: row.map(
+            (cell) =>
+              new TableCell({
+                children: [new Paragraph({ text: cell })],
+              }),
+          ),
+        }),
+      );
+    });
+
+    // Create table
+    const table = new Table({
+      rows: tableRows,
+      width: {
+        size: 100,
+        type: WidthType.PERCENTAGE,
+      },
+    });
+
+    // Create document
+    const doc = new Document({
+      sections: [
+        {
+          children: [table],
+        },
+      ],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    console.log('✅ Table DOCX ready');
+    return blob;
   }
 }
