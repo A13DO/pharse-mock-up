@@ -109,6 +109,8 @@ export interface Job {
     workflowLevel: number;
   };
   filename: string;
+  originalFile?: string;
+  translatedFile?: string;
   originalFileDirectory?: string;
   dateDue?: string;
   dateCreated: string;
@@ -220,28 +222,23 @@ export class PhraseApiService {
 
   getProjects(): Observable<ProjectsResponse> {
     return this.http
-      .get<ProjectsResponse>(`${this.baseUrl}/v1/projects`, {
-        headers: this.getHeaders(),
-        withCredentials: true,
-      })
+      .get<ProjectsResponse>('https://phrase.runasp.net/api/Phrase/projects')
       .pipe(catchError(this.handleError));
   }
 
   getProject(projectUid: string): Observable<ProjectDetail> {
     return this.http
-      .get<ProjectDetail>(`${this.baseUrl}/v1/projects/${projectUid}`, {
-        headers: this.getHeaders(),
-        withCredentials: true,
-      })
+      .get<ProjectDetail>(
+        `https://phrase.runasp.net/api/Phrase/projects/${projectUid}`,
+      )
       .pipe(catchError(this.handleError));
   }
 
   getJobs(projectUid: string): Observable<JobsResponse> {
     return this.http
-      .get<JobsResponse>(`${this.baseUrl}/v2/projects/${projectUid}/jobs`, {
-        headers: this.getHeaders(),
-        withCredentials: true,
-      })
+      .get<JobsResponse>(
+        `https://phrase.runasp.net/api/Jobs/projects/${projectUid}/jobs`,
+      )
       .pipe(catchError(this.handleError));
   }
 
