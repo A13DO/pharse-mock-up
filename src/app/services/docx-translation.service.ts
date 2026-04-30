@@ -92,6 +92,7 @@ export class DocxTranslationService {
 
   /**
    * Extract raw text from DOCX file
+   * For bilingual DOCX files, extracts text and filters out table headers/metadata
    */
   private async extractTextFromDocx(file: File): Promise<string> {
     // Read the file into an ArrayBuffer first, outside the mammoth call
@@ -122,14 +123,144 @@ export class DocxTranslationService {
     }
 
     try {
-      const result = await mammoth.extractRawText({ arrayBuffer });
+      // Extract HTML to get table structure
+      const result = await mammoth.convertToHtml({ arrayBuffer });
       if (result.messages?.length) {
         console.warn('⚠️ mammoth warnings:', result.messages);
       }
-      return result.value;
+
+      // Parse the HTML to extract table data
+      const parser = new DOMParser();
+      const htmlDoc = parser.parseFromString(result.value, 'text/html');
+
+      // Look for tables (bilingual DOCX files use tables)
+      const tables = htmlDoc.querySelectorAll('table');
+
+      if (tables.length === 0) {
+        // No tables found, fall back to raw text
+        console.log('No tables found in DOCX, using raw text extraction');
+        const rawResult = await mammoth.extractRawText({ arrayBuffer });
+        return rawResult.value;
+      }
+
+      // Extract text from table cells and filter intelligently
+      const extractedLines: string[] = [];
+      const seenTexts = new Set<string>(); // Track duplicates
+
+      tables.forEach((table) => {
+        const rows = table.querySelectorAll('tr');
+
+        rows.forEach((row, rowIndex) => {
+          const cells = row.querySelectorAll('td, th');
+          const cellTexts = Array.from(cells).map(
+            (cell) => cell.textContent?.trim() || '',
+          );
+
+          // Skip header rows (first few rows typically contain column headers)
+          if (rowIndex < 2) {
+            return;
+          }
+
+          // For bilingual tables, deduplicate texts within the same row
+          // (Source and Target columns may have identical text if not translated)
+          const uniqueRowTexts = new Set<string>();
+
+          cellTexts.forEach((text) => {
+            if (this.isTranslatableContent(text) && !uniqueRowTexts.has(text)) {
+              uniqueRowTexts.add(text);
+            }
+          });
+
+          // Add unique texts from this row to the global list
+          uniqueRowTexts.forEach((text) => {
+            if (!seenTexts.has(text)) {
+              seenTexts.add(text);
+              extractedLines.push(text);
+            }
+          });
+        });
+      });
+
+      const result_text = extractedLines.join('\n\n');
+      console.log(
+        `✅ Extracted ${extractedLines.length} translatable lines from DOCX (filtered from ${tables[0]?.querySelectorAll('tr').length || 0} table rows)`,
+      );
+
+      return result_text;
     } catch (err: any) {
       throw new Error(`mammoth failed to parse DOCX: ${err?.message || err}`);
     }
+  }
+
+  /**
+   * Check if text content is translatable (filters out UI elements, metadata, etc.)
+   */
+  private isTranslatableContent(text: string): boolean {
+    if (!text || text.trim().length < 3) {
+      return false;
+    }
+
+    const trimmed = text.trim();
+
+    // Exclude pure numbers
+    if (/^\d+$/.test(trimmed)) {
+      return false;
+    }
+
+    // Exclude UI/metadata keywords
+    const uiKeywords = [
+      'ID',
+      'ICU',
+      'Source',
+      'Target',
+      'Comment',
+      'Memsource',
+      'MT',
+      'converter',
+      'ace-arab',
+      'ace',
+      'read only',
+      'locked',
+      'upload',
+      'grey',
+      'background',
+      'font',
+      'segment',
+      'Click here to enter',
+    ];
+
+    if (
+      uiKeywords.some((keyword) =>
+        trimmed.toLowerCase().includes(keyword.toLowerCase()),
+      )
+    ) {
+      return false;
+    }
+
+    // Exclude segment ID patterns (e.g., "gnzwL54VVuaLadvq_dc9:0")
+    if (/^[a-zA-Z0-9_-]+_dc\d+:\d+$/.test(trimmed)) {
+      return false;
+    }
+
+    // Exclude language codes (e.g., "en", "en-US")
+    if (/^[a-z]{2,3}(-[a-z]{2,4})?$/i.test(trimmed)) {
+      return false;
+    }
+
+    // Exclude parenthetical metadata
+    if (/^\([^)]+\)$/.test(trimmed)) {
+      return false;
+    }
+
+    // Exclude very short abbreviations
+    if (
+      trimmed.length === 1 ||
+      (trimmed.length === 2 && /^[A-Z#]+$/.test(trimmed))
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
