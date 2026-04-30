@@ -16,8 +16,8 @@ import {
 } from '../../../core/services/phrase-api.service';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { HeaderComponent } from '../../../layout/header/header.component';
-import { DropdownModule } from 'primeng/dropdown';
-import { MultiSelectModule } from 'primeng/multiselect';
+import { Select } from 'primeng/select';
+import { MultiSelect } from 'primeng/multiselect';
 
 @Component({
   selector: 'app-project-create',
@@ -27,8 +27,8 @@ import { MultiSelectModule } from 'primeng/multiselect';
     ReactiveFormsModule,
     FormFieldComponent,
     HeaderComponent,
-    DropdownModule,
-    MultiSelectModule,
+    Select,
+    MultiSelect,
   ],
   templateUrl: './project-create.component.html',
   styleUrl: './project-create.component.scss',
@@ -101,7 +101,8 @@ export class ProjectCreateComponent implements OnInit {
     });
   }
 
-  onTemplateSelect(template: ProjectTemplate | null): void {
+  onTemplateSelect(event: any): void {
+    const template = event?.value || event;
     if (!template) {
       return;
     }

@@ -21,10 +21,10 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">
                         Use Project Template
                     </label>
-                    <p-dropdown [options]="templates" formControlName="template" optionLabel="templateName"
+                    <p-select [options]="templates" formControlName="template" optionLabel="templateName"
                         [filter]="true" filterBy="templateName" placeholder="Select a template (optional)"
                         [showClear]="true" [loading]="loadingTemplates" styleClass="w-full"
-                        (onChange)="onTemplateSelect($event.value)">
+                        (onChange)="onTemplateSelect($event)">
                         <ng-template pTemplate="selectedItem" let-template>
                             <div class="flex items-center gap-2" *ngIf="template">
                                 <span class="font-medium">{{ template.templateName }}</span>
@@ -37,7 +37,7 @@
                                     template.targetLangs.join(', ') }}</span>
                             </div>
                         </ng-template>
-                    </p-dropdown>
+                    </p-select>
                     <small class="text-gray-500 text-xs mt-1 block">
                         Select a template to auto-fill the form
                     </small>
@@ -58,7 +58,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1.5">
                         Source Language <span class="text-red-500">*</span>
                     </label>
-                    <p-dropdown [options]="languages" formControlName="sourceLang" optionLabel="name" [filter]="true"
+                    <p-select [options]="languages" formControlName="sourceLang" optionLabel="name" [filter]="true"
                         filterBy="name,code" placeholder="Select source language" [showClear]="true"
                         [loading]="loadingLanguages" styleClass="w-full"
                         [class.ng-invalid]="getControl('sourceLang').invalid && getControl('sourceLang').touched">
@@ -74,7 +74,7 @@
                                 <span class="text-gray-600">- {{ language.name }}</span>
                             </div>
                         </ng-template>
-                    </p-dropdown>
+                    </p-select>
                     <small class="text-red-600 text-xs mt-1 block"
                         *ngIf="getControl('sourceLang').invalid && getControl('sourceLang').touched">
                         Source language is required

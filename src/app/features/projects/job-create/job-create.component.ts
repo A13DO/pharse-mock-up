@@ -4,12 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { PhraseApiService } from '../../../core/services/phrase-api.service';
 import { HeaderComponent } from '../../../layout/header/header.component';
-import { FileUploadModule } from 'primeng/fileupload';
-import { MultiSelectModule } from 'primeng/multiselect';
-import { InputTextModule } from 'primeng/inputtext';
-import { CardModule } from 'primeng/card';
-import { MessageModule } from 'primeng/message';
-import { ChipsModule } from 'primeng/chips';
+import { FileUpload } from 'primeng/fileupload';
+import { MultiSelect } from 'primeng/multiselect';
+import { InputText } from 'primeng/inputtext';
+import { Card } from 'primeng/card';
+import { Message } from 'primeng/message';
 
 interface CreateJobForm {
   filename: string;
@@ -25,12 +24,11 @@ interface CreateJobForm {
     FormsModule,
     RouterModule,
     HeaderComponent,
-    FileUploadModule,
-    MultiSelectModule,
-    InputTextModule,
-    CardModule,
-    MessageModule,
-    ChipsModule,
+    FileUpload,
+    MultiSelect,
+    InputText,
+    Card,
+    Message,
   ],
   templateUrl: './job-create.component.html',
   styleUrl: './job-create.component.scss',
