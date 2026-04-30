@@ -1,4 +1,4 @@
-<aside class="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-50">
+<!-- <aside class="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-50">
     <div class="px-6 py-8 border-b border-gray-200">
         <h1 class="text-2xl font-bold text-slate-900">
             Phrase TMS</h1>
@@ -19,4 +19,39 @@
             <span class="text-sm">{{ item.label }}</span>
         </a>
     </nav>
-</aside>
+</aside> -->
+
+<div hlmSidebarWrapper>
+    <hlm-sidebar class="border-r-[rgb(226,226,226)]">
+        <div hlmSidebarHeader class="px-6 py-8 border-b border-b-[rgb(226,226,226)]">
+            <h1 class="text-2xl font-bold text-slate-900">Phrase TMS</h1>
+            <p class="text-sm text-gray-500 mt-1">API Client</p>
+        </div>
+
+        <div *ngIf="!hasToken"
+            class="bg-amber-50 text-amber-800 px-6 py-3 text-sm border-b border-amber-200 flex items-center gap-2">
+            <ng-icon hlm name="lucideAlertTriangle" size="sm" />
+            <span>No API token set</span>
+        </div>
+
+        <div hlmSidebarContent class="border-b-[rgb(226,226,226)]">
+            <div hlmSidebarGroup>
+                <div hlmSidebarGroupLabel class="border-b border-b-[rgb(226,226,226)]">Navigation</div>
+                <div hlmSidebarGroupContent>
+                    <ul hlmSidebarMenu>
+                        @for(item of menuItems; track item.path){
+                        <li hlmSidebarMenuItem>
+                            <a hlmSidebarMenuButton [routerLink]="item.path"
+                                routerLinkActive="bg-indigo-50 text-[#0f172b] font-semibold">
+                                <ng-icon hlm [name]="item.icon" />
+                                <span>{{ item.label }}</span>
+                            </a>
+                        </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </hlm-sidebar>
+    <ng-content />
+</div>

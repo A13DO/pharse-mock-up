@@ -4,16 +4,14 @@
         <span *ngIf="required" class="text-red-500">*</span>
     </label>
 
-    <input *ngIf="type !== 'textarea' && type !== 'checkbox'" [type]="type" [formControl]="control"
-        [placeholder]="placeholder"
-        [class]="'h-9 px-3 border rounded-md text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent ' + (showError ? 'border-red-500 focus:ring-red-500' : 'border-slate-300')" />
+    <input *ngIf="type !== 'textarea' && type !== 'checkbox'" hlmInput [type]="type" [formControl]="control"
+        [placeholder]="placeholder" [class.border-red-500]="showError" />
 
-    <textarea *ngIf="type === 'textarea'" [formControl]="control" [placeholder]="placeholder" rows="3"
-        [class]="'px-3 py-2 border rounded-md text-sm resize-y min-h-[70px] transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent ' + (showError ? 'border-red-500 focus:ring-red-500' : 'border-slate-300')"></textarea>
+    <textarea *ngIf="type === 'textarea'" hlmInput [formControl]="control" [placeholder]="placeholder" rows="3"
+        class="resize-y min-h-[70px]" [class.border-red-500]="showError"></textarea>
 
     <div *ngIf="type === 'checkbox'" class="flex items-center gap-2">
-        <input type="checkbox" [formControl]="control" [id]="label"
-            class="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-2 focus:ring-slate-400 cursor-pointer" />
+        <hlm-checkbox [formControl]="control" [id]="label" />
         <label [for]="label" class="text-sm text-slate-700 cursor-pointer m-0 font-normal">{{ placeholder || label
             }}</label>
     </div>

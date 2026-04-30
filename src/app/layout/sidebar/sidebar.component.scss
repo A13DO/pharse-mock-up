@@ -1,1 +1,16 @@
-/* Styles handled by Tailwind CSS */
+/* Override Spartan UI sidebar borders to use light gray instead of black */
+:host ::ng-deep {
+  [hlmSidebarHeader],
+  [hlmSidebarContent],
+  [hlmSidebarGroup] {
+    border-color: rgb(226, 226, 226) !important;
+  }
+
+  hlm-sidebar {
+    border-right-color: rgb(226, 226, 226) !important;
+  }
+
+  [hlmSidebarGroupLabel] {
+    border-bottom-color: rgb(226, 226, 226) !important;
+  }
+}
