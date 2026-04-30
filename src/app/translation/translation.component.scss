@@ -52,6 +52,141 @@
   margin: 0;
 }
 
+// Workflow Steps Indicator
+.workflow-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  gap: 0.5rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+}
+
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem;
+  position: relative;
+  cursor: default;
+
+  &.active {
+    .step-number {
+      background: linear-gradient(135deg, #c96442, #e8a87c);
+      color: white;
+      box-shadow: 0 0 20px rgba(201, 100, 66, 0.4);
+    }
+
+    .step-label {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+  }
+
+  &.completed {
+    .step-number {
+      background: var(--success-color);
+      color: white;
+
+      &::after {
+        content: "✓";
+        position: absolute;
+        font-weight: bold;
+        font-size: 0.8rem;
+      }
+    }
+
+    .step-label {
+      color: var(--success-color);
+      font-weight: 600;
+    }
+  }
+}
+
+.step-number {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+}
+
+.step-label {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.step-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.step-line {
+  flex: 0.3;
+  height: 2px;
+  background: var(--border-color);
+  transition: background 0.3s ease;
+
+  &.completed {
+    background: var(--success-color);
+  }
+
+  @media (max-width: 768px) {
+    width: 2px;
+    height: 40px;
+    flex: 0.1;
+  }
+}
+
+// Step Content
+.step-content {
+  animation: fadeIn 0.3s ease;
+
+  .step-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+  }
+
+  .step-description {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .section-title {
   font-size: 0.875rem;
   font-weight: 600;
@@ -665,6 +800,88 @@
   padding: 2rem;
   text-align: center;
   margin-bottom: 2rem;
+}
+
+// BaseTermReference Display
+.baseterm-reference {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+
+  .baseterm-info {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+  }
+
+  .baseterm-preview {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .baseterm-header {
+    background: var(--bg-primary);
+    border-bottom: 2px solid var(--border-color);
+    padding: 0.75rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    word-break: break-word;
+  }
+
+  .baseterm-rows {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .baseterm-row {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    word-break: break-word;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .baseterm-more {
+    padding: 0.75rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+}
+
+// Previous Button
+.previous-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    border-color: var(--text-primary);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .success-icon {

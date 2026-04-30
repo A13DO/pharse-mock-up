@@ -1,7 +1,28 @@
 <div class="translation-container">
     <div class="header">
         <h1 class="title">AI Document Translation</h1>
-        <p class="subtitle">Translate DOCX files using advanced AI models</p>
+        <p class="subtitle">Translate DOCX files using advanced AI models - 3 Step Process</p>
+    </div>
+
+    <!-- Workflow Step Indicator -->
+    <div class="workflow-steps">
+        <div class="step" [class.active]="workflowStep() === 1" [class.completed]="workflowStep() > 1">
+            <div class="step-number">1</div>
+            <div class="step-label">Extract TermBase</div>
+            <div class="step-description">Upload & extract terminology</div>
+        </div>
+        <div class="step-line" [class.completed]="workflowStep() > 1"></div>
+        <div class="step" [class.active]="workflowStep() === 2" [class.completed]="workflowStep() > 2">
+            <div class="step-number">2</div>
+            <div class="step-label">Translate with Reference</div>
+            <div class="step-description">Upload & apply custom prompt</div>
+        </div>
+        <div class="step-line" [class.completed]="workflowStep() > 2"></div>
+        <div class="step" [class.active]="workflowStep() === 3">
+            <div class="step-number">3</div>
+            <div class="step-label">Download Result</div>
+            <div class="step-description">Get bilingual DOCX</div>
+        </div>
     </div>
 
     <!-- Provider Selector -->
@@ -86,91 +107,197 @@
         <p class="api-key-hint">Your API key is saved locally and never leaves your browser</p>
     </div>
 
-    <!-- File Upload -->
-    <div class="upload-section">
-        <h2 class="section-title">Upload Document</h2>
-        @if (!uploadedFile()) {
-        <div class="upload-zone" [class.dragging]="isDragging()" (click)="fileInput.click()"
-            (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
-            <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <p class="upload-text">Drag & drop your .docx or .mxliff file here</p>
-            <p class="upload-subtext">or click to browse</p>
-        </div>
-        } @else {
-        <div class="file-info">
-            <svg class="file-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                <path d="M13 2v7h7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            <div class="file-details">
-                <div class="file-name">{{ fileInfo()?.name }}</div>
-                <div class="file-size">{{ fileInfo()?.size }}</div>
-            </div>
-            @if (!isProcessing() && progressStep() !== 'complete') {
-            <button class="remove-file-btn"
-                (click)="uploadedFile.set(null); filePreview.set(''); showPreview.set(false)">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <line x1="18" y1="6" x2="6" y2="18" stroke-width="2" stroke-linecap="round" />
-                    <line x1="6" y1="6" x2="18" y2="18" stroke-width="2" stroke-linecap="round" />
-                </svg>
-            </button>
-            }
-        </div>
-        }
-        <input #fileInput type="file" accept=".docx,.mxliff,.xliff,.xml" (change)="onFileSelected($event)"
-            style="display: none" />
-    </div>
+    <!-- STEP 1: Upload & Extract TermBase -->
+    @if (workflowStep() === 1) {
+    <div class="step-content step-1">
+        <h2 class="step-title">Step 1: Extract TermBase Table</h2>
+        <p class="step-description">Upload your bilingual document to extract terminology. The system will create a
+            TermBase table with source terms and translations.</p>
 
-    <!-- File Preview -->
-    @if (filePreview() && uploadedFile()) {
-    <div class="preview-section">
-        <div class="preview-header">
-            <h2 class="section-title">File Preview</h2>
-            <button class="preview-toggle-btn" (click)="togglePreview()" [disabled]="isProcessing()">
-                @if (showPreview()) {
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polyline points="18 15 12 9 6 15" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
+        <!-- File Upload -->
+        <div class="upload-section">
+            <h2 class="section-title">Upload Document</h2>
+            @if (!uploadedFile()) {
+            <div class="upload-zone" [class.dragging]="isDragging()" (click)="fileInput.click()"
+                (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+                <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
-                Hide
-                } @else {
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polyline points="6 9 12 15 18 9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <p class="upload-text">Drag & drop your .docx or .mxliff file here</p>
+                <p class="upload-subtext">or click to browse</p>
+            </div>
+            } @else {
+            <div class="file-info">
+                <svg class="file-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M13 2v7h7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
-                Show
+                <div class="file-details">
+                    <div class="file-name">{{ fileInfo()?.name }}</div>
+                    <div class="file-size">{{ fileInfo()?.size }}</div>
+                </div>
+                @if (!isProcessing() && progressStep() !== 'complete') {
+                <button class="remove-file-btn"
+                    (click)="uploadedFile.set(null); filePreview.set(''); showPreview.set(false)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <line x1="18" y1="6" x2="6" y2="18" stroke-width="2" stroke-linecap="round" />
+                        <line x1="6" y1="6" x2="18" y2="18" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
                 }
-            </button>
+            </div>
+            }
+            <input #fileInput type="file" accept=".docx,.mxliff,.xliff,.xml" (change)="onFileSelected($event)"
+                style="display: none" />
         </div>
-        @if (showPreview()) {
-        <div class="preview-content">
-            <pre class="preview-text">{{ filePreview() }}</pre>
+
+        <!-- File Preview -->
+        @if (filePreview() && uploadedFile()) {
+        <div class="preview-section">
+            <div class="preview-header">
+                <h2 class="section-title">File Preview</h2>
+                <button class="preview-toggle-btn" (click)="togglePreview()" [disabled]="isProcessing()">
+                    @if (showPreview()) {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <polyline points="18 15 12 9 6 15" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Hide
+                    } @else {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <polyline points="6 9 12 15 18 9" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Show
+                    }
+                </button>
+            </div>
+            @if (showPreview()) {
+            <div class="preview-content">
+                <pre class="preview-text">{{ filePreview() }}</pre>
+            </div>
+            }
         </div>
         }
     </div>
     }
 
-    <!-- Translation Prompt -->
-    <div class="prompt-section">
-        <h2 class="section-title">Translation Instructions</h2>
-        <textarea class="prompt-textarea"
-            placeholder="Enter your translation instructions, target language, and any specific requirements..."
-            [(ngModel)]="customPrompt" [disabled]="isProcessing()" rows="4"></textarea>
+    <!-- STEP 2: Custom Prompt & Translation -->
+    @if (workflowStep() === 2) {
+    <div class="step-content step-2">
+        <h2 class="step-title">Step 2: Translate with Custom Prompt</h2>
+        <p class="step-description">Upload the same document again with your custom translation prompt. The extracted
+            TermBase table will be included as a reference.</p>
 
-        <div class="quick-prompts">
-            <p class="quick-prompts-label">Quick examples:</p>
-            <div class="prompt-chips">
-                @for (prompt of quickPrompts; track $index) {
-                <button class="prompt-chip" (click)="useQuickPrompt(prompt)" [disabled]="isProcessing()">
-                    {{ prompt }}
-                </button>
+        <!-- TermBase Reference Display -->
+        @if (baseTermTable()) {
+        <div class="baseterm-reference">
+            <h2 class="section-title">TermBase Reference (from Step 1)</h2>
+            <p class="baseterm-info">This TermBase table will be included in your prompt as a reference</p>
+            <div class="baseterm-preview">
+                <div class="baseterm-header">{{ baseTermTable()!.headers.join(' | ') }}</div>
+                <div class="baseterm-rows">
+                    @for (row of baseTermTable()!.rows | slice:0:5; track $index) {
+                    <div class="baseterm-row">{{ row.join(' | ') }}</div>
+                    }
+                </div>
+                @if (baseTermTable()!.rows.length > 5) {
+                <div class="baseterm-more">+{{ baseTermTable()!.rows.length - 5 }} more rows</div>
                 }
             </div>
         </div>
+        }
+
+        <!-- File Upload -->
+        <div class="upload-section">
+            <h2 class="section-title">Upload Document Again</h2>
+            @if (!uploadedFile()) {
+            <div class="upload-zone" [class.dragging]="isDragging()" (click)="fileInput2.click()"
+                (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+                <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <p class="upload-text">Drag & drop your .docx or .mxliff file here</p>
+                <p class="upload-subtext">or click to browse</p>
+            </div>
+            } @else {
+            <div class="file-info">
+                <svg class="file-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M13 2v7h7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <div class="file-details">
+                    <div class="file-name">{{ fileInfo()?.name }}</div>
+                    <div class="file-size">{{ fileInfo()?.size }}</div>
+                </div>
+                @if (!isProcessing() && progressStep() !== 'complete') {
+                <button class="remove-file-btn"
+                    (click)="uploadedFile.set(null); filePreview.set(''); showPreview.set(false)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <line x1="18" y1="6" x2="6" y2="18" stroke-width="2" stroke-linecap="round" />
+                        <line x1="6" y1="6" x2="18" y2="18" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+                }
+            </div>
+            }
+            <input #fileInput2 type="file" accept=".docx,.mxliff,.xliff,.xml" (change)="onFileSelected($event)"
+                style="display: none" />
+        </div>
+
+        <!-- File Preview -->
+        @if (filePreview() && uploadedFile()) {
+        <div class="preview-section">
+            <div class="preview-header">
+                <h2 class="section-title">File Preview</h2>
+                <button class="preview-toggle-btn" (click)="togglePreview()" [disabled]="isProcessing()">
+                    @if (showPreview()) {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <polyline points="18 15 12 9 6 15" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Hide
+                    } @else {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <polyline points="6 9 12 15 18 9" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Show
+                    }
+                </button>
+            </div>
+            @if (showPreview()) {
+            <div class="preview-content">
+                <pre class="preview-text">{{ filePreview() }}</pre>
+            </div>
+            }
+        </div>
+        }
+
+        <!-- Translation Prompt -->
+        <div class="prompt-section">
+            <h2 class="section-title">Custom Translation Instructions</h2>
+            <textarea class="prompt-textarea"
+                placeholder="Enter your custom translation instructions, target language, and specific requirements. The TermBase table will be automatically included as a reference."
+                [(ngModel)]="customPrompt" [disabled]="isProcessing()" rows="4"></textarea>
+
+            <div class="quick-prompts">
+                <p class="quick-prompts-label">Quick examples:</p>
+                <div class="prompt-chips">
+                    @for (prompt of quickPrompts; track $index) {
+                    <button class="prompt-chip" (click)="useQuickPrompt(prompt)" [disabled]="isProcessing()">
+                        {{ prompt }}
+                    </button>
+                    }
+                </div>
+            </div>
+        </div>
     </div>
+    }
 
     <!-- Error Message -->
     @if (errorMessage()) {
@@ -210,158 +337,165 @@
     </div>
     }
 
-    <!-- Success State -->
-    @if (progressStep() === 'complete') {
-    <div class="success-section">
-        <div class="success-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke-width="2" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                <path d="M22 4L12 14.01l-3-3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+    <!-- STEP 3: Download Result -->
+    @if (workflowStep() === 3 && progressStep() === 'complete') {
+    <div class="step-content step-3">
+        <h2 class="step-title">Step 3: Download Result</h2>
+
+        <!-- Success State -->
+        <div class="success-section">
+            <div class="success-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M22 4L12 14.01l-3-3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <h3 class="success-title">Translation Complete!</h3>
+            <p class="success-filename">{{ translatedFilename() }}</p>
         </div>
-        <h3 class="success-title">Translation Complete!</h3>
-        <p class="success-filename">{{ translatedFilename() }}</p>
+
+        <!-- TermBase Table with Results -->
+        @if (termBaseTable()) {
+        <div class="termbase-section">
+            <div class="termbase-header">
+                <h2 class="section-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        style="vertical-align: middle; margin-right: 0.5rem;">
+                        <rect x="3" y="3" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <rect x="14" y="3" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <rect x="14" y="14" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <rect x="3" y="14" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Result TermBase Table
+                </h2>
+                <div class="termbase-actions">
+                    <div class="view-toggle">
+                        <button class="view-toggle-btn" [class.active]="termBaseViewMode() === 'table'"
+                            (click)="termBaseViewMode.set('table')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <rect x="3" y="3" width="7" height="7" stroke-width="2" />
+                                <rect x="14" y="3" width="7" height="7" stroke-width="2" />
+                                <rect x="14" y="14" width="7" height="7" stroke-width="2" />
+                                <rect x="3" y="14" width="7" height="7" stroke-width="2" />
+                            </svg>
+                            Table
+                        </button>
+                        <button class="view-toggle-btn" [class.active]="termBaseViewMode() === 'text'"
+                            (click)="termBaseViewMode.set('text')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2" />
+                                <polyline points="14 2 14 8 20 8" stroke-width="2" />
+                                <line x1="16" y1="13" x2="8" y2="13" stroke-width="2" />
+                                <line x1="16" y1="17" x2="8" y2="17" stroke-width="2" />
+                                <polyline points="10 9 9 9 8 9" stroke-width="2" />
+                            </svg>
+                            Text
+                        </button>
+                    </div>
+                    <button class="termbase-toggle-btn" (click)="toggleTermBaseTable()">
+                        @if (showTermBaseTable()) {
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="18 15 12 9 6 15" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg>
+                        Hide
+                        } @else {
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="6 9 12 15 18 9" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                        </svg>
+                        Show
+                        }
+                    </button>
+                </div>
+            </div>
+            @if (showTermBaseTable()) {
+            <div class="termbase-content">
+                <!-- Table View -->
+                @if (termBaseViewMode() === 'table') {
+                <div class="edit-hint">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Click any cell to edit
+                </div>
+                <div class="table-wrapper">
+                    <table class="termbase-table">
+                        <thead>
+                            <tr>
+                                @for (header of termBaseTable()!.headers; track $index) {
+                                <th>{{ header }}</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (row of termBaseTable()!.rows; track rowIndex; let rowIndex = $index) {
+                            <tr>
+                                @for (cell of row; track colIndex; let colIndex = $index) {
+                                <td contenteditable="true" [attr.data-row]="rowIndex" [attr.data-col]="colIndex"
+                                    (blur)="updateTableCell(rowIndex, colIndex, $any($event.target).textContent.trim())"
+                                    (keydown.enter)="$event.preventDefault(); $any($event.target).blur()">{{ cell }}
+                                </td>
+                                }
+                            </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                }
+
+                <!-- Text View -->
+                @if (termBaseViewMode() === 'text') {
+                <div class="text-view-wrapper">
+                    <div class="text-view-actions">
+                        <button class="copy-text-btn" (click)="copyTableText()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2" />
+                                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2" />
+                            </svg>
+                            Copy
+                        </button>
+                    </div>
+                    <pre class="text-view-content">{{ getTableAsText() }}</pre>
+                </div>
+                }
+
+                <div class="termbase-info">
+                    <span class="info-badge">
+                        {{ termBaseTable()!.rows.length }} rows × {{ termBaseTable()!.headers.length }} columns
+                    </span>
+                </div>
+            </div>
+            }
+        </div>
+        }
+
+        <!-- Download Button -->
         <div class="success-actions">
             <button class="download-btn" (click)="downloadTranslation()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
-                Download Translation
+                Download Bilingual DOCX
             </button>
-            <button class="reset-btn" (click)="reset()">
-                Translate Another
+            <button class="reset-btn" (click)="resetWorkflow()">
+                Start Over
             </button>
         </div>
     </div>
-
-    <!-- TermBase Table Preview -->
-    @if (termBaseTable()) {
-    <div class="termbase-section">
-        <div class="termbase-header">
-            <h2 class="section-title">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    style="vertical-align: middle; margin-right: 0.5rem;">
-                    <rect x="3" y="3" width="7" height="7" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                    <rect x="14" y="3" width="7" height="7" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                    <rect x="14" y="14" width="7" height="7" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                    <rect x="3" y="14" width="7" height="7" stroke-width="2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                </svg>
-                TermBase Table Preview
-            </h2>
-            <div class="termbase-actions">
-                <div class="view-toggle">
-                    <button class="view-toggle-btn" [class.active]="termBaseViewMode() === 'table'"
-                        (click)="termBaseViewMode.set('table')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <rect x="3" y="3" width="7" height="7" stroke-width="2" />
-                            <rect x="14" y="3" width="7" height="7" stroke-width="2" />
-                            <rect x="14" y="14" width="7" height="7" stroke-width="2" />
-                            <rect x="3" y="14" width="7" height="7" stroke-width="2" />
-                        </svg>
-                        Table
-                    </button>
-                    <button class="view-toggle-btn" [class.active]="termBaseViewMode() === 'text'"
-                        (click)="termBaseViewMode.set('text')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke-width="2" />
-                            <polyline points="14 2 14 8 20 8" stroke-width="2" />
-                            <line x1="16" y1="13" x2="8" y2="13" stroke-width="2" />
-                            <line x1="16" y1="17" x2="8" y2="17" stroke-width="2" />
-                            <polyline points="10 9 9 9 8 9" stroke-width="2" />
-                        </svg>
-                        Text
-                    </button>
-                </div>
-                <button class="termbase-toggle-btn" (click)="toggleTermBaseTable()">
-                    @if (showTermBaseTable()) {
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <polyline points="18 15 12 9 6 15" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                    </svg>
-                    Hide
-                    } @else {
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <polyline points="6 9 12 15 18 9" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                    </svg>
-                    Show
-                    }
-                </button>
-            </div>
-        </div>
-        @if (showTermBaseTable()) {
-        <div class="termbase-content">
-            <!-- Table View -->
-            @if (termBaseViewMode() === 'table') {
-            <div class="edit-hint">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" />
-                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                Click any cell to edit
-            </div>
-            <div class="table-wrapper">
-                <table class="termbase-table">
-                    <thead>
-                        <tr>
-                            @for (header of termBaseTable()!.headers; track $index) {
-                            <th>{{ header }}</th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @for (row of termBaseTable()!.rows; track rowIndex; let rowIndex = $index) {
-                        <tr>
-                            @for (cell of row; track colIndex; let colIndex = $index) {
-                            <td contenteditable="true" [attr.data-row]="rowIndex" [attr.data-col]="colIndex"
-                                (blur)="updateTableCell(rowIndex, colIndex, $any($event.target).textContent.trim())"
-                                (keydown.enter)="$event.preventDefault(); $any($event.target).blur()">{{ cell }}</td>
-                            }
-                        </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-            }
-
-            <!-- Text View -->
-            @if (termBaseViewMode() === 'text') {
-            <div class="text-view-wrapper">
-                <div class="text-view-actions">
-                    <button class="copy-text-btn" (click)="copyTableText()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke-width="2" />
-                            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke-width="2" />
-                        </svg>
-                        Copy
-                    </button>
-                </div>
-                <pre class="text-view-content">{{ getTableAsText() }}</pre>
-            </div>
-            }
-
-            <div class="termbase-info">
-                <span class="info-badge">
-                    {{ termBaseTable()!.rows.length }} rows × {{ termBaseTable()!.headers.length }} columns
-                </span>
-            </div>
-        </div>
-        }
-    </div>
-    }
     }
 
     <!-- Action Buttons -->
-    @if (progressStep() === 'idle') {
-    <div class="action-section">
+    @if (progressStep() === 'idle' && workflowStep() < 3) { <div class="action-section">
         <button class="translate-btn" [style.--provider-color]="selectedProviderInfo()?.color"
             [disabled]="!canTranslate()" (click)="translate()">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -370,13 +504,13 @@
                 <path d="M16 10l3-3 3 3M16 14l3 3 3-3" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" />
             </svg>
-            Translate Document
+            {{ workflowStep() === 1 ? 'Extract TermBase' : 'Translate with Prompt' }}
         </button>
-        @if (uploadedFile() || customPrompt()) {
-        <button class="reset-btn-secondary" (click)="reset()">
-            Reset
+        @if (workflowStep() === 2 && baseTermTable()) {
+        <button class="previous-btn" (click)="previousStep()" [disabled]="isProcessing()">
+            ← Back to Step 1
         </button>
         }
-    </div>
-    }
+</div>
+}
 </div>

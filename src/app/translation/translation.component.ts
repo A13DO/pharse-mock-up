@@ -31,6 +31,8 @@ type ProgressStep =
   | 'building'
   | 'complete';
 
+type WorkflowStep = 1 | 2 | 3;
+
 @Component({
   selector: 'app-translation',
   standalone: true,
@@ -146,6 +148,46 @@ export class TranslationComponent {
     },
   ];
 
+  // Base term extraction prompt - used in Step 1
+  baseTermPrompt = `You are a professional linguistic analyst and terminology specialist.
+## Task Context
+You will receive text extracted from a document.
+The extraction MUST follow the file metadata:
+- Source Language: English
+- Target Language: Arabic
+You MUST extract terminology based on the source language and provide the required translation in the target language.
+---
+## Task
+Extract and create a TermBase table with the following columns:
+# | Source Term (English) | REQUIRED Translation (Arabic) | Category
+Number each row starting from 1.
+---
+## Extraction Scope (STRICT)
+You MUST extract ONLY the following types of terms:
+1. Company names (اسماء الشركات)
+2. People names (الاشخاص)
+3. Abbreviations (الاختصارات)
+4. Main key terms (المصطلحات الرئيسية في الملف)
+---
+## Rules
+- Extract terms EXACTLY as they appear in the source text
+- Do NOT modify or normalize source terms
+- Provide accurate and professional translations in Arabic
+- Use consistent translation for repeated terms
+- Do NOT include duplicates (same term more than once)
+- Do NOT include irrelevant words
+---
+## Category Rules
+Assign ONE category per term:
+- Company names (اسماء الشركات)
+- People names (الاشخاص)
+- Abbreviations (الاختصارات)
+- Main key terms (المصطلحات الرئيسية في الملف)
+---
+## Output Format (STRICT)
+You MUST output a table with EXACTLY 4 columns:
+| # | Source Term (English) | REQUIRED Translation (Arabic) | Category |`;
+
   // Quick prompt examples
   quickPrompts = [
     'Extract and create a TermBase table with columns: # | Source Term (English) | REQUIRED Translation (Arabic) | Category. Number each row starting from 1. Extract specifically: Company names (اسماء الشركات), People names (الاشخاص), Abbreviations (الاختصارات), and Main key terms (المصطلحات الرئيسية في الملف). Use appropriate category for each term.',
@@ -156,6 +198,8 @@ export class TranslationComponent {
   ];
 
   // Signals for reactive state
+  workflowStep = signal<WorkflowStep>(1);
+  baseTermTable = signal<{ headers: string[]; rows: string[][] } | null>(null);
   selectedProvider = signal<Provider>('anthropic');
   selectedModel = signal<string>('claude-opus-4-20250514');
   apiKey = signal<string>('');
@@ -179,13 +223,27 @@ export class TranslationComponent {
     this.providers.find((p) => p.id === this.selectedProvider()),
   );
 
-  canTranslate = computed(
-    () =>
-      this.uploadedFile() !== null &&
-      this.customPrompt().trim() !== '' &&
-      this.apiKey().trim() !== '' &&
-      this.progressStep() === 'idle',
-  );
+  canTranslate = computed(() => {
+    const step = this.workflowStep();
+    const isIdle = this.progressStep() === 'idle';
+
+    if (step === 1) {
+      // Step 1: Just need file and API key (uses baseterm prompt)
+      return (
+        this.uploadedFile() !== null && this.apiKey().trim() !== '' && isIdle
+      );
+    } else if (step === 2) {
+      // Step 2: Need file, custom prompt, API key, and baseterm table from step 1
+      return (
+        this.uploadedFile() !== null &&
+        this.customPrompt().trim() !== '' &&
+        this.apiKey().trim() !== '' &&
+        this.baseTermTable() !== null &&
+        isIdle
+      );
+    }
+    return false;
+  });
 
   isProcessing = computed(() => {
     const step = this.progressStep();
@@ -534,26 +592,86 @@ export class TranslationComponent {
   }
 
   /**
-   * Start the translation process
+   * Move to next workflow step
+   */
+  nextStep(): void {
+    if (this.workflowStep() < 3) {
+      this.workflowStep.set(
+        ((this.workflowStep() as number) + 1) as WorkflowStep,
+      );
+      this.uploadedFile.set(null);
+      this.filePreview.set('');
+      this.showPreview.set(false);
+      this.errorMessage.set(null);
+    }
+  }
+
+  /**
+   * Move to previous workflow step
+   */
+  previousStep(): void {
+    if (this.workflowStep() > 1) {
+      this.workflowStep.set(
+        ((this.workflowStep() as number) - 1) as WorkflowStep,
+      );
+      this.uploadedFile.set(null);
+      this.filePreview.set('');
+      this.showPreview.set(false);
+      this.customPrompt.set('');
+      this.errorMessage.set(null);
+    }
+  }
+
+  /**
+   * Reset workflow to step 1
+   */
+  resetWorkflow(): void {
+    this.workflowStep.set(1);
+    this.uploadedFile.set(null);
+    this.customPrompt.set('');
+    this.progressStep.set('idle');
+    this.errorMessage.set(null);
+    this.translatedBlob.set(null);
+    this.translatedFilename.set('');
+    this.filePreview.set('');
+    this.showPreview.set(false);
+    this.aiResponse.set('');
+    this.termBaseTable.set(null);
+    this.showTermBaseTable.set(false);
+    this.termBaseViewMode.set('table');
+    this.baseTermTable.set(null);
+  }
+
+  /**
+   * Start the translation process (handles both step 1 and step 2)
    */
   async translate(): Promise<void> {
     if (!this.canTranslate()) return;
 
     const file = this.uploadedFile();
-    const prompt = this.customPrompt();
     const provider = this.selectedProvider();
     const apiKey = this.apiKey();
+    const step = this.workflowStep();
 
     if (!file) return;
 
     this.errorMessage.set(null);
     this.translatedBlob.set(null);
-    this.aiResponse.set('');
-    this.termBaseTable.set(null);
     this.progressStep.set('reading');
 
     try {
       setTimeout(() => this.progressStep.set('translating'), 500);
+
+      // Determine which prompt to use based on step
+      let prompt = '';
+      if (step === 1) {
+        // Step 1: Use baseterm extraction prompt
+        prompt = this.baseTermPrompt;
+      } else if (step === 2) {
+        // Step 2: Include baseterm table in custom prompt
+        const baseTermTableText = this.getTableAsText();
+        prompt = `${this.customPrompt()}\n\n---\n## Reference TermBase Table:\n${baseTermTableText}`;
+      }
 
       const result = await this.docxService.translateDocument(
         file,
@@ -570,23 +688,50 @@ export class TranslationComponent {
       const tableData = this.parseMarkdownTable(result.responseText);
 
       if (tableData) {
-        this.termBaseTable.set(tableData);
-        this.showTermBaseTable.set(true);
-        console.log(
-          '✅ TermBase table detected:',
-          tableData.headers.length,
-          'columns,',
-          tableData.rows.length,
-          'rows',
-        );
-      }
+        if (step === 1) {
+          // Step 1: Store baseterm table and move to step 2
+          this.baseTermTable.set(tableData);
+          this.showTermBaseTable.set(true);
+          console.log(
+            '✅ TermBase table extracted:',
+            tableData.headers.length,
+            'columns,',
+            tableData.rows.length,
+            'rows',
+          );
 
-      // Brief pause before completion
-      setTimeout(() => {
+          // Auto-move to step 2
+          setTimeout(() => {
+            this.progressStep.set('idle');
+            this.nextStep();
+          }, 1000);
+        } else if (step === 2) {
+          // Step 2: Store result table for download
+          this.termBaseTable.set(tableData);
+          this.showTermBaseTable.set(true);
+          console.log(
+            '✅ Translation table generated:',
+            tableData.headers.length,
+            'columns,',
+            tableData.rows.length,
+            'rows',
+          );
+
+          // Show success state and advance to step 3
+          setTimeout(() => {
+            this.translatedBlob.set(result.blob);
+            this.translatedFilename.set(result.filename);
+            this.progressStep.set('complete');
+            this.nextStep(); // Advance to Step 3
+          }, 500);
+        }
+      } else if (step === 2) {
+        // Step 2 without table result - still advance to step 3
         this.translatedBlob.set(result.blob);
         this.translatedFilename.set(result.filename);
         this.progressStep.set('complete');
-      }, 500);
+        this.nextStep(); // Advance to Step 3
+      }
     } catch (error: any) {
       console.error('❌ Translation failed:', error);
       this.errorMessage.set(error.message || 'Translation failed');
@@ -655,6 +800,7 @@ export class TranslationComponent {
     this.termBaseTable.set(null);
     this.showTermBaseTable.set(false);
     this.termBaseViewMode.set('table');
+    this.baseTermTable.set(null);
   }
 
   /**
