@@ -194,18 +194,63 @@
         <!-- TermBase Reference Display -->
         @if (baseTermTable()) {
         <div class="baseterm-reference">
-            <h2 class="section-title">TermBase Reference (from Step 1)</h2>
-            <p class="baseterm-info">This TermBase table will be included in your prompt as a reference</p>
-            <div class="baseterm-preview">
-                <div class="baseterm-header">{{ baseTermTable()!.headers.join(' | ') }}</div>
-                <div class="baseterm-rows">
-                    @for (row of baseTermTable()!.rows | slice:0:5; track $index) {
-                    <div class="baseterm-row">{{ row.join(' | ') }}</div>
-                    }
-                </div>
-                @if (baseTermTable()!.rows.length > 5) {
-                <div class="baseterm-more">+{{ baseTermTable()!.rows.length - 5 }} more rows</div>
-                }
+            <div class="baseterm-header">
+                <h2 class="section-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        style="vertical-align: middle; margin-right: 0.5rem;">
+                        <rect x="3" y="3" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <rect x="14" y="3" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <rect x="14" y="14" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <rect x="3" y="14" width="7" height="7" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    TermBase Reference (from Step 1)
+                </h2>
+                <p class="baseterm-info">This TermBase table will be included in your prompt as a reference. You can
+                    edit cells if needed.</p>
+            </div>
+
+            <!-- Editable Table -->
+            <div class="edit-hint">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Click any cell to edit
+            </div>
+            <div class="table-wrapper">
+                <table class="termbase-table">
+                    <thead>
+                        <tr>
+                            @for (header of baseTermTable()!.headers; track $index) {
+                            <th>{{ header }}</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (row of baseTermTable()!.rows; track rowIndex; let rowIndex = $index) {
+                        <tr>
+                            @for (cell of row; track colIndex; let colIndex = $index) {
+                            <td contenteditable="true" [attr.data-row]="rowIndex" [attr.data-col]="colIndex"
+                                (blur)="updateBaseTermTableCell(rowIndex, colIndex, $any($event.target).textContent.trim())"
+                                (keydown.enter)="$event.preventDefault(); $any($event.target).blur()">{{ cell }}
+                            </td>
+                            }
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="termbase-info">
+                <span class="info-badge">
+                    {{ baseTermTable()!.rows.length }} rows × {{ baseTermTable()!.headers.length }} columns
+                </span>
             </div>
         </div>
         }
@@ -295,6 +340,30 @@
                     }
                 </div>
             </div>
+
+            <!-- Final Prompt Preview -->
+            @if (baseTermTable()) {
+            <div class="prompt-preview-section">
+                <button class="preview-toggle-btn" (click)="showPromptPreview.set(!showPromptPreview())">
+                    @if (showPromptPreview()) {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <polyline points="18 15 12 9 6 15" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Hide Final Prompt (with TermBase Table Applied)
+                    } @else {
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <polyline points="6 9 12 15 18 9" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                    Show Final Prompt (with TermBase Table Applied)
+                    }
+                </button>
+                @if (showPromptPreview()) {
+                <pre class="prompt-preview-content">{{ finalPrompt() }}</pre>
+                }
+            </div>
+            }
         </div>
     </div>
     }

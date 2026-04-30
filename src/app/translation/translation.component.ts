@@ -188,6 +188,114 @@ Assign ONE category per term:
 You MUST output a table with EXACTLY 4 columns:
 | # | Source Term (English) | REQUIRED Translation (Arabic) | Category |`;
 
+  // Default translation prompt for Step 2
+  defaultTranslationPrompt = `You are a highly experienced professional translator with broad expertise across multiple domains, specializing in English to Arabic translation.
+
+## Task Context
+You will receive text segments in numbered cells extracted from a document.
+
+The file is part of a translation workflow. You MUST:
+* Perform translation according to the project metadata (domain, tone, and context if provided).
+* Follow the translation instructions strictly.
+* Ensure the output is suitable for localization workflows (e.g., Phrase integration).
+* If metadata is provided (legal, technical, marketing, etc.), adapt tone accordingly.
+
+---
+
+## ⚠️ TERMINOLOGY COMPLIANCE — HIGHEST PRIORITY ⚠️
+
+This is the MOST CRITICAL requirement. You MUST follow the terminology glossary as specified. This is NON-NEGOTIABLE.
+
+**MANDATORY RULES FOR TERMINOLOGY:**
+* When a source term from the glossary appears in the source text, you MUST use the corresponding translation EXACTLY.
+* No synonyms, no alternatives, no variations.
+* This applies to EVERY occurrence.
+* If repeated → same translation EVERY time.
+* Glossary OVERRIDES your preferences.
+
+**CAPITALIZATION RULES:**
+* Apply natural Arabic usage.
+* Proper nouns must remain consistent.
+
+---
+
+## 📋 MANDATORY TERMINOLOGY GLOSSARY
+
+| # | Source Term (English) | REQUIRED Translation (Arabic) | Category |
+|---|---|---|---|
+| 1 | Example Term | مثال | Company names (اسماء الشركات) |
+
+**REMINDER: Every term above MUST appear in your translation exactly as specified whenever the source term appears in the source text.**
+
+---
+
+## Translation Process (VERY IMPORTANT)
+
+For EACH cell, you MUST produce TWO translations:
+
+### 1) Initial Translation (Draft)
+* Accurate, complete translation
+* May be slightly literal
+* MUST respect glossary strictly
+
+### 2) Final Translation (Post-Edited)
+* Fully refined, natural, and idiomatic Arabic
+* Professionally rewritten if needed
+* Improved flow and readability
+* MUST strictly respect glossary terms
+* This is the FINAL version to be used in production
+
+🚨 The FINAL translation (Column 4) is the one that will be exported to Phrase.
+
+---
+
+## Other Critical Rules
+
+### 1. COMPLETE TRANSLATION
+Translate EVERYTHING. No skipping.
+
+### 2. NO MODIFICATIONS
+Do NOT add/remove meaning.
+
+### 3. PRESERVE TAGS
+Keep ALL placeholders exactly:
+{1}, <1>, </1>, etc.
+
+### 4. MAINTAIN FORMATTING
+Keep structure exactly as-is.
+
+### 5. PROFESSIONAL + NATURAL ARABIC
+* Avoid literal translation
+* Use fluent, native Arabic
+* Restructure if needed
+
+---
+
+## Output Format (STRICT)
+
+You MUST output a table with EXACTLY 4 columns:
+
+| Cell # | Source | Initial Translation | Final Translation |
+
+Rules:
+* Do NOT merge cells
+* Do NOT skip cells
+* Keep numbering EXACT
+
+---
+
+## Important Note for Integration
+
+* The "Final Translation" column is the ONLY column that should be used for export to Phrase.
+* Ensure it is clean, polished, and production-ready.
+
+---
+
+## Delivery
+
+* Translate all cells provided in each batch
+* Maintain consistency across batches`;
+
   // Quick prompt examples
   quickPrompts = [
     'Extract and create a TermBase table with columns: # | Source Term (English) | REQUIRED Translation (Arabic) | Category. Number each row starting from 1. Extract specifically: Company names (اسماء الشركات), People names (الاشخاص), Abbreviations (الاختصارات), and Main key terms (المصطلحات الرئيسية في الملف). Use appropriate category for each term.',
@@ -205,7 +313,7 @@ You MUST output a table with EXACTLY 4 columns:
   apiKey = signal<string>('');
   showApiKey = signal<boolean>(false);
   uploadedFile = signal<File | null>(null);
-  customPrompt = signal<string>('');
+  customPrompt = signal<string>(this.defaultTranslationPrompt);
   progressStep = signal<ProgressStep>('idle');
   errorMessage = signal<string | null>(null);
   translatedBlob = signal<Blob | null>(null);
@@ -217,6 +325,31 @@ You MUST output a table with EXACTLY 4 columns:
   termBaseTable = signal<{ headers: string[]; rows: string[][] } | null>(null);
   showTermBaseTable = signal<boolean>(false);
   termBaseViewMode = signal<'table' | 'text'>('table');
+  showPromptPreview = signal<boolean>(false);
+
+  // Computed prompt with actual extracted TermBase table applied
+  finalPrompt = computed(() => {
+    let prompt = this.customPrompt();
+
+    // In Step 2, replace the placeholder glossary table with the actual extracted table
+    if (this.baseTermTable() && this.workflowStep() === 2) {
+      const actualTableText = this.getBaseTermTableAsText();
+
+      // Replace the placeholder table section (from "| # | Source Term" until "**REMINDER:")
+      // This pattern matches the header and all rows until the reminder line
+      const placeholderPattern =
+        /\|\s*#\s*\|\s*Source Term[^\n]*\n[^\n]*\|[^\n]*\n[\s\S]*?(\n\*\*REMINDER:)/;
+
+      if (placeholderPattern.test(prompt)) {
+        prompt = prompt.replace(
+          placeholderPattern,
+          `${actualTableText}\n\n**REMINDER:`,
+        );
+      }
+    }
+
+    return prompt;
+  });
 
   // Computed values
   selectedProviderInfo = computed(() =>
@@ -437,6 +570,33 @@ You MUST output a table with EXACTLY 4 columns:
   }
 
   /**
+   * Update a cell value in the baseTermTable (Step 2 reference)
+   * @param rowIndex - Row index in the table
+   * @param colIndex - Column index in the table
+   * @param newValue - New cell value
+   */
+  updateBaseTermTableCell(
+    rowIndex: number,
+    colIndex: number,
+    newValue: string,
+  ): void {
+    const table = this.baseTermTable();
+    if (!table) return;
+
+    // Create a new copy of the table data (immutable update)
+    const updatedRows = [...table.rows];
+    updatedRows[rowIndex] = [...updatedRows[rowIndex]];
+    updatedRows[rowIndex][colIndex] = newValue;
+
+    this.baseTermTable.set({
+      headers: table.headers,
+      rows: updatedRows,
+    });
+
+    console.log('✏️ BaseTermTable cell updated:', rowIndex, colIndex, newValue);
+  }
+
+  /**
    * Update a cell value in the TermBase table
    * @param rowIndex - Row index in the table
    * @param colIndex - Column index in the table
@@ -466,6 +626,29 @@ You MUST output a table with EXACTLY 4 columns:
     this.termBaseViewMode.set(
       this.termBaseViewMode() === 'table' ? 'text' : 'table',
     );
+  }
+
+  /**
+   * Generate markdown text representation of the baseTermTable
+   */
+  getBaseTermTableAsText(): string {
+    const table = this.baseTermTable();
+    if (!table) return '';
+
+    const lines: string[] = [];
+
+    // Header row
+    lines.push('| ' + table.headers.join(' | ') + ' |');
+
+    // Separator row
+    lines.push('|' + table.headers.map(() => '---').join('|') + '|');
+
+    // Data rows
+    table.rows.forEach((row) => {
+      lines.push('| ' + row.join(' | ') + ' |');
+    });
+
+    return lines.join('\n');
   }
 
   /**
@@ -668,9 +851,8 @@ You MUST output a table with EXACTLY 4 columns:
         // Step 1: Use baseterm extraction prompt
         prompt = this.baseTermPrompt;
       } else if (step === 2) {
-        // Step 2: Include baseterm table in custom prompt
-        const baseTermTableText = this.getTableAsText();
-        prompt = `${this.customPrompt()}\n\n---\n## Reference TermBase Table:\n${baseTermTableText}`;
+        // Step 2: Use the final prompt with actual TermBase table embedded
+        prompt = this.finalPrompt();
       }
 
       const result = await this.docxService.translateDocument(

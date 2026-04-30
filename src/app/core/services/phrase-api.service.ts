@@ -435,6 +435,50 @@ export class PhraseApiService {
     });
   }
 
+  /**
+   * Download bilingual file from completed jobs
+   * @param projectUid - Project unique identifier
+   * @param jobUids - Array of job unique identifiers
+   * @param format - File format (MXLF, DOCX, XLIFF, TMX) - default: MXLF
+   * @returns Promise with the file as Blob
+   */
+  downloadBilingualFile(
+    projectUid: string,
+    jobUids: string[],
+    format: 'MXLF' | 'DOCX' | 'XLIFF' | 'TMX' = 'MXLF',
+  ): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const url = `https://phrase.runasp.net/api/Jobs/projects/${projectUid}/jobs/bilingualFile`;
+
+      const payload = {
+        jobs: jobUids.map((uid) => ({ uid })),
+      };
+
+      const headers = new HttpHeaders({
+        accept: '*/*',
+        'Content-Type': 'application/json',
+      });
+
+      this.http
+        .post(url, payload, {
+          headers,
+          params: { format },
+          responseType: 'blob',
+          observe: 'response',
+        })
+        .pipe(catchError(this.handleError))
+        .subscribe({
+          next: (response) => {
+            const blob = response.body as Blob;
+            resolve(blob);
+          },
+          error: (error) => {
+            reject(error);
+          },
+        });
+    });
+  }
+
   private handleError(error: any): Observable<never> {
     let errorMessage = 'An error occurred';
 

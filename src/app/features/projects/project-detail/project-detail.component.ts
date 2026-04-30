@@ -7,12 +7,11 @@ import {
   Job,
 } from '../../../core/services/phrase-api.service';
 import { HeaderComponent } from '../../../layout/header/header.component';
-import { JobFileDownloadComponent } from "../../../shared/components/job-file-download/job-file-download.component";
 
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, HeaderComponent, JobFileDownloadComponent],
+  imports: [CommonModule, RouterModule, HeaderComponent],
   templateUrl: './project-detail.component.html',
   styleUrl: './project-detail.component.scss',
 })
@@ -119,5 +118,57 @@ export class ProjectDetailComponent implements OnInit {
       hour: '2-digit',
       minute: '2-digit',
     });
+  }
+
+  /**
+   * Download bilingual file for a specific job
+   * @param job - Job to download
+   * @param format - File format (MXLF, DOCX, XLIFF, TMX)
+   */
+  async downloadBilingualFile(
+    job: Job,
+    format: 'MXLF' | 'DOCX' | 'XLIFF' | 'TMX' = 'MXLF',
+  ): Promise<void> {
+    if (!this.project?.uid) {
+      console.error('Project UID not available');
+      return;
+    }
+
+    try {
+      const blob = await this.phraseApi.downloadBilingualFile(
+        this.project.uid,
+        [job.uid],
+        format,
+      );
+
+      // Determine file extension based on format
+      const extensions: Record<string, string> = {
+        MXLF: 'mxliff',
+        DOCX: 'docx',
+        XLIFF: 'xliff',
+        TMX: 'tmx',
+      };
+      const ext = extensions[format] || 'mxliff';
+
+      // Create download filename
+      const filename = `${job.filename.replace(/\.[^/.]+$/, '')}_bilingual.${ext}`;
+
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log('✅ Bilingual file downloaded successfully');
+    } catch (error) {
+      console.error('❌ Failed to download bilingual file:', error);
+      this.error = 'Failed to download bilingual file';
+    }
   }
 }
