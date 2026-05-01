@@ -86,16 +86,20 @@ export interface LanguagesResponse {
   languages: Language[];
 }
 
+export type JobStatus =
+  | 'NEW'
+  | 'ACCEPTED'
+  | 'DECLINED'
+  | 'REJECTED'
+  | 'DELIVERED'
+  | 'EMAILED'
+  | 'COMPLETED'
+  | 'CANCELLED';
+
 export interface Job {
   uid: string;
   innerId: string;
-  status:
-    | 'NEW'
-    | 'EMAILED'
-    | 'ACCEPTED'
-    | 'DECLINED'
-    | 'COMPLETED'
-    | 'CANCELLED';
+  status: JobStatus;
   providers?: Array<{
     type: string;
     id: string;
@@ -518,6 +522,33 @@ export class PhraseApiService {
           },
         });
     });
+  }
+
+  /**
+   * Update job status for one or more jobs
+   * @param projectUid - Project unique identifier
+   * @param jobUids - Array of job UIDs to update
+   * @param status - New job status
+   * @returns Observable with the update response
+   */
+  updateJobStatus(
+    projectUid: string,
+    jobUids: string[],
+    status: JobStatus,
+  ): Observable<any> {
+    const url = `https://phrase.runasp.net/api/Jobs/projects/${projectUid}/jobs/batch`;
+    const body = {
+      status,
+      jobs: jobUids.map((uid) => ({ uid })),
+    };
+
+    return this.http
+      .put(url, body, {
+        headers: new HttpHeaders({
+          'Content-Type': 'application/json',
+        }),
+      })
+      .pipe(catchError(this.handleError));
   }
 
   private handleError(error: any): Observable<never> {
