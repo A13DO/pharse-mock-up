@@ -84,6 +84,9 @@ export class TranslationComponent implements OnInit {
   isUploading = signal<boolean>(false);
   uploadSuccess = signal<boolean>(false);
   uploadMessage = signal<string | null>(null);
+  segmentIdMap = signal<{ id: string; segNum: number; sourceText: string }[]>(
+    [],
+  );
 
   providers: ProviderInfo[] = [
     {
@@ -381,8 +384,13 @@ Rules:
     const file = this.originalFile;
     const step = this.workflowStep();
     const isIdle = this.progressStep() === 'idle';
+    const provider = this.selectedProvider();
 
-    if (!apiKey || !file || !isIdle) return false;
+    // Claude (Anthropic) doesn't require API key (proxied through Phrase)
+    const needsApiKey = provider !== 'anthropic';
+
+    if (!file || !isIdle) return false;
+    if (needsApiKey && !apiKey) return false;
 
     if (step === 1) return true;
     if (step === 2 && this.baseTermTable()) return true;
@@ -547,6 +555,21 @@ Rules:
         blob.type ||
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       this.originalFile = new File([blob], fileName, { type: mimeType });
+
+      // Store the original buffer in the service
+      const arrayBuffer = await blob.arrayBuffer();
+      this.docxService.setOriginalDocxBuffer(arrayBuffer);
+
+      // Extract segment IDs from the original DOCX
+      try {
+        const segments = await this.docxService.extractSegmentsWithIds();
+        this.segmentIdMap.set(segments);
+        console.log(`✅ Extracted ${segments.length} segment IDs`);
+      } catch (error: any) {
+        console.warn('⚠️ Failed to extract segment IDs:', error.message);
+        // Continue anyway - the app can still work without segment IDs
+      }
+
       this.isDownloadingFile = false;
       console.log('✅ Bilingual file loaded successfully:', fileName);
 
@@ -680,6 +703,61 @@ Rules:
     });
 
     return lines.join('\n');
+  }
+
+  /**
+   * Build translations array from translation table
+   * Maps table rows to segment IDs using segmentIdMap
+   */
+  private async buildTranslationsFromTable(tableData: {
+    headers: string[];
+    rows: string[][];
+  }): Promise<{ segmentId: string; targetText: string }[]> {
+    const segmentMap = this.segmentIdMap();
+    const translations: { segmentId: string; targetText: string }[] = [];
+
+    // Find the column indices
+    const cellNumIndex = tableData.headers.findIndex(
+      (h) => h.toLowerCase().includes('cell') || h.toLowerCase().includes('#'),
+    );
+    const finalTranslationIndex = tableData.headers.findIndex((h) =>
+      h.toLowerCase().includes('final'),
+    );
+
+    if (cellNumIndex === -1 || finalTranslationIndex === -1) {
+      console.warn('⚠️ Could not find Cell # or Final Translation columns');
+      return translations;
+    }
+
+    tableData.rows.forEach((row) => {
+      const cellNumStr = row[cellNumIndex];
+      const finalTranslation = row[finalTranslationIndex];
+
+      if (!cellNumStr || !finalTranslation) {
+        return;
+      }
+
+      // Parse cell number
+      const cellNum = parseInt(cellNumStr, 10);
+      if (isNaN(cellNum)) {
+        return;
+      }
+
+      // Find corresponding segment by segNum
+      const segment = segmentMap.find((s) => s.segNum === cellNum);
+      if (!segment) {
+        console.warn(`⚠️ No segment found for cell #${cellNum}`);
+        return;
+      }
+
+      translations.push({
+        segmentId: segment.id,
+        targetText: finalTranslation.trim(),
+      });
+    });
+
+    console.log(`✅ Built ${translations.length} translations from table`);
+    return translations;
   }
 
   async copyTableText(): Promise<void> {
@@ -863,8 +941,15 @@ Rules:
             'rows',
           );
 
+          // Build translations array by mapping table rows to segment IDs
+          const translations = await this.buildTranslationsFromTable(tableData);
+
+          // Inject translations into original DOCX
+          const modifiedBlob =
+            await this.docxService.injectTranslationsAndBuild(translations);
+
           setTimeout(() => {
-            this.translatedBlob.set(result.blob);
+            this.translatedBlob.set(modifiedBlob);
             // Use the job's original filename
             const jobFilename = this.job?.filename || result.filename;
             this.translatedFilename.set(jobFilename);
@@ -873,6 +958,10 @@ Rules:
           }, 500);
         }
       } else if (step === 2) {
+        // If no table data, we can't inject translations properly
+        console.warn(
+          '⚠️ No translation table found, cannot inject translations',
+        );
         this.translatedBlob.set(result.blob);
         // Use the job's original filename
         const jobFilename = this.job?.filename || result.filename;
@@ -897,12 +986,11 @@ Rules:
       let blob: Blob;
 
       if (table && table.headers.length > 0 && table.rows.length > 0) {
-        console.log('📊 Rebuilding DOCX from edited table data...');
-        blob = await this.docxService.buildDocxFromTable(
-          table.headers,
-          table.rows,
-          filename,
-        );
+        console.log('📊 Re-injecting translations from edited table data...');
+        // Build translations array from edited table
+        const translations = await this.buildTranslationsFromTable(table);
+        // Inject into original DOCX structure
+        blob = await this.docxService.injectTranslationsAndBuild(translations);
       } else {
         const originalBlob = this.translatedBlob();
         if (!originalBlob) return;
@@ -944,12 +1032,13 @@ Rules:
 
       // Build the file (same logic as download)
       if (table && table.headers.length > 0 && table.rows.length > 0) {
-        console.log('📊 Rebuilding DOCX from edited table data for upload...');
-        blob = await this.docxService.buildDocxFromTable(
-          table.headers,
-          table.rows,
-          filename,
+        console.log(
+          '📊 Re-injecting translations from edited table data for upload...',
         );
+        // Build translations array from edited table
+        const translations = await this.buildTranslationsFromTable(table);
+        // Inject into original DOCX structure
+        blob = await this.docxService.injectTranslationsAndBuild(translations);
       } else {
         const originalBlob = this.translatedBlob();
         if (!originalBlob) {

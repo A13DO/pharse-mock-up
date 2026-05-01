@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import * as mammoth from 'mammoth';
+import JSZip from 'jszip';
 import {
   Document,
   Paragraph,
@@ -27,6 +28,7 @@ const SYSTEM_PROMPT =
   providedIn: 'root',
 })
 export class DocxTranslationService {
+  private originalDocxBuffer: ArrayBuffer | null = null;
   async translateDocument(
     file: File,
     customPrompt: string,
@@ -341,7 +343,7 @@ export class DocxTranslationService {
       // Use Phrase proxy endpoint for Claude
       const encodedText = encodeURIComponent(userMessage);
       console.log(userMessage);
-      
+
       url = `https://phrase.runasp.net/api/Glossary/extract?text=${encodedText}`;
       body = {};
       extractFn = (d) => d.result;
@@ -590,5 +592,228 @@ export class DocxTranslationService {
     const blob = await Packer.toBlob(doc);
     console.log('✅ Table DOCX ready');
     return blob;
+  }
+
+  /**
+   * Store the original DOCX buffer for later manipulation
+   * @param buffer - ArrayBuffer from the downloaded DOCX file
+   */
+  setOriginalDocxBuffer(buffer: ArrayBuffer): void {
+    this.originalDocxBuffer = buffer;
+    console.log('📦 Original DOCX buffer stored:', buffer.byteLength, 'bytes');
+  }
+
+  /**
+   * Extract segments with their Phrase segment IDs from the original DOCX
+   * @returns Array of segments with ID, segment number, and source text
+   */
+  async extractSegmentsWithIds(): Promise<
+    { id: string; segNum: number; sourceText: string }[]
+  > {
+    if (!this.originalDocxBuffer) {
+      throw new Error('Original DOCX buffer not set');
+    }
+
+    console.log('🔍 Extracting segments with IDs from original DOCX...');
+
+    try {
+      // Load ZIP file
+      const zip = await JSZip.loadAsync(this.originalDocxBuffer);
+      const documentXml = await zip.file('word/document.xml')?.async('text');
+
+      if (!documentXml) {
+        throw new Error('word/document.xml not found in DOCX');
+      }
+
+      // Parse XML
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(documentXml, 'application/xml');
+
+      // Check for parsing errors
+      const parserError = xmlDoc.querySelector('parsererror');
+      if (parserError) {
+        throw new Error('Failed to parse word/document.xml');
+      }
+
+      // Find all SDT (Structured Document Tag) elements
+      const sdtElements = xmlDoc.querySelectorAll('sdt');
+      const segments: { id: string; segNum: number; sourceText: string }[] = [];
+      let segNum = 0;
+
+      sdtElements.forEach((sdt) => {
+        // Check if this SDT is locked (source cell or header)
+        const lockElement = sdt.querySelector(
+          'sdtPr lock[w\\:val="sdtContentLocked"]',
+        );
+        if (lockElement) {
+          // Skip locked SDTs (source cells and headers)
+          return;
+        }
+
+        // Extract segment ID from tag
+        const tagElement = sdt.querySelector('sdtPr tag');
+        const segmentId = tagElement?.getAttribute('w:val');
+
+        if (!segmentId) {
+          return;
+        }
+
+        // Extract source text from sdtContent
+        const sdtContent = sdt.querySelector('sdtContent');
+        const textNodes = sdtContent?.querySelectorAll('t');
+        let sourceText = '';
+
+        textNodes?.forEach((textNode) => {
+          sourceText += textNode.textContent || '';
+        });
+
+        segments.push({
+          id: segmentId,
+          segNum: segNum++,
+          sourceText: sourceText.trim(),
+        });
+      });
+
+      console.log(`✅ Extracted ${segments.length} unlocked segments`);
+      return segments;
+    } catch (error: any) {
+      console.error('❌ Failed to extract segments:', error);
+      throw new Error(`Failed to extract segments: ${error.message}`);
+    }
+  }
+
+  /**
+   * Inject translations into the original DOCX and build the output file
+   * @param translations - Array of translations mapped to segment IDs
+   * @returns Blob containing the modified DOCX
+   */
+  async injectTranslationsAndBuild(
+    translations: { segmentId: string; targetText: string }[],
+  ): Promise<Blob> {
+    if (!this.originalDocxBuffer) {
+      throw new Error('Original DOCX buffer not set');
+    }
+
+    console.log('💉 Injecting translations into original DOCX...');
+
+    try {
+      // Load ZIP file
+      const zip = await JSZip.loadAsync(this.originalDocxBuffer);
+      const documentXml = await zip.file('word/document.xml')?.async('text');
+
+      if (!documentXml) {
+        throw new Error('word/document.xml not found in DOCX');
+      }
+
+      // Parse XML
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(documentXml, 'application/xml');
+
+      // Create a map for quick lookup
+      const translationMap = new Map<string, string>();
+      translations.forEach((t) =>
+        translationMap.set(t.segmentId, t.targetText),
+      );
+
+      // Find all SDT elements
+      const sdtElements = xmlDoc.querySelectorAll('sdt');
+      let updatedCount = 0;
+
+      sdtElements.forEach((sdt) => {
+        // Check if locked
+        const lockElement = sdt.querySelector(
+          'sdtPr lock[w\\:val="sdtContentLocked"]',
+        );
+        if (lockElement) {
+          return; // Skip locked SDTs
+        }
+
+        // Get segment ID
+        const tagElement = sdt.querySelector('sdtPr tag');
+        const segmentId = tagElement?.getAttribute('w:val');
+
+        if (!segmentId) {
+          return;
+        }
+
+        // Check if we have a translation for this segment
+        const translation = translationMap.get(segmentId);
+        if (!translation) {
+          return; // No translation for this segment
+        }
+
+        // Find the sdtContent
+        const sdtContent = sdt.querySelector('sdtContent');
+        if (!sdtContent) {
+          return;
+        }
+
+        // Find the paragraph inside sdtContent
+        const paragraph = sdtContent.querySelector('p');
+        if (!paragraph) {
+          return;
+        }
+
+        // Preserve formatting from existing run if present
+        const existingRun = paragraph.querySelector('r');
+        let runProperties: Element | null = null;
+
+        if (existingRun) {
+          runProperties = existingRun
+            .querySelector('rPr')
+            ?.cloneNode(true) as Element;
+        }
+
+        // Remove all existing runs
+        const runs = paragraph.querySelectorAll('r');
+        runs.forEach((run) => run.remove());
+
+        // Create new run with translation
+        const newRun = xmlDoc.createElementNS(
+          'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+          'w:r',
+        );
+
+        // Add preserved formatting if it exists
+        if (runProperties) {
+          newRun.appendChild(runProperties);
+        }
+
+        // Create text element with translation
+        const textElement = xmlDoc.createElementNS(
+          'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+          'w:t',
+        );
+        textElement.setAttribute('xml:space', 'preserve');
+        textElement.textContent = translation;
+
+        newRun.appendChild(textElement);
+        paragraph.appendChild(newRun);
+
+        updatedCount++;
+      });
+
+      console.log(`✅ Injected ${updatedCount} translations`);
+
+      // Serialize XML back to string
+      const serializer = new XMLSerializer();
+      const updatedXml = serializer.serializeToString(xmlDoc);
+
+      // Update the ZIP file with modified XML
+      zip.file('word/document.xml', updatedXml);
+
+      // Generate the final DOCX blob
+      const blob = await zip.generateAsync({
+        type: 'blob',
+        mimeType:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      console.log('✅ Modified DOCX ready');
+      return blob;
+    } catch (error: any) {
+      console.error('❌ Failed to inject translations:', error);
+      throw new Error(`Failed to inject translations: ${error.message}`);
+    }
   }
 }

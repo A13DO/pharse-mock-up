@@ -100,16 +100,32 @@
                     }
                 </div>
                 <div class="provider-model">{{ provider.model }}</div>
+                @if (provider.id !== 'anthropic') {
                 <a class="provider-link" [href]="provider.keyUrl" target="_blank" rel="noopener"
                     (click)="$event.stopPropagation()">Get API key →</a>
+                }
                 <div class="provider-indicator"></div>
             </button>
             }
         </div>
     </div>
 
+    <!-- Claude Info Banner -->
+    <!-- @if (selectedProvider() === 'anthropic') {
+    <div class="claude-info-banner">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10" stroke-width="2" />
+            <line x1="12" y1="16" x2="12" y2="12" stroke-width="2" stroke-linecap="round" />
+            <line x1="12" y1="8" x2="12.01" y2="8" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <div>
+            <strong>Proxied through Phrase:</strong> Claude API is integrated through your Phrase server. No API key or model selection required.
+        </div>
+    </div>
+    } -->
+
     <!-- Model Selector -->
-    @if (selectedProviderInfo()?.models?.length) {
+    @if (selectedProviderInfo()?.models?.length && selectedProvider() !== 'anthropic') {
     <div class="model-section">
         <h2 class="section-title">Model</h2>
         <div class="model-cards">
@@ -138,6 +154,7 @@
     </div>
 
     <!-- API Key Input -->
+    @if (selectedProvider() !== 'anthropic') {
     <div class="api-key-section">
         <h2 class="section-title">{{ selectedProviderInfo()?.keyLabel }}</h2>
         <div class="api-key-group">
@@ -164,13 +181,14 @@
         </div>
         <p class="api-key-hint">Your API key is saved locally and never leaves your browser</p>
     </div>
+    }
 
     <!-- File Preview (available in all steps) -->
     @if (filePreview() && originalFile) {
     <div class="preview-section">
         <div class="preview-header">
-            <h2 class="section-title">Bilingual File Content Preview</h2>
-            <button class="preview-toggle-btn" (click)="togglePreview()" [disabled]="isProcessing()">
+            <h2 class="section-title">Bilingual File Preview</h2>
+            <button class="preview-toggle-btn !w-fit" (click)="togglePreview()" [disabled]="isProcessing()">
                 @if (showPreview()) {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <polyline points="18 15 12 9 6 15" stroke-width="2" stroke-linecap="round"
