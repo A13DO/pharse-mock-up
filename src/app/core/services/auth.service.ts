@@ -4,7 +4,15 @@ import { Injectable } from '@angular/core';
   providedIn: 'root',
 })
 export class AuthService {
-  private readonly TOKEN_KEY = 'qPJN7q5uTLKjVZeyFPedMUxGPHs3A2y741ccbXrSGq09Ru1UHVJ2WOo8GSeJvIIQ0';
+  private readonly TOKEN_KEY = 'phrase_api_token';
+  private readonly DEFAULT_TOKEN = 'xZ0U2u2OqE0nqvliTqRvFR0ucGs7twJbaRHniMxy0ablVPpv8gLd4Dp3kNrvcNWo3';
+
+  constructor() {
+    // Initialize with default token if not already set
+    if (!this.getToken()) {
+      this.setToken(this.DEFAULT_TOKEN);
+    }
+  }
 
   getToken(): string | null {
     return localStorage.getItem(this.TOKEN_KEY);

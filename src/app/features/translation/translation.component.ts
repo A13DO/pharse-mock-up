@@ -81,6 +81,9 @@ export class TranslationComponent implements OnInit {
   showTermBaseTable = signal<boolean>(false);
   termBaseViewMode = signal<'table' | 'text'>('table');
   showPromptPreview = signal<boolean>(false);
+  isUploading = signal<boolean>(false);
+  uploadSuccess = signal<boolean>(false);
+  uploadMessage = signal<string | null>(null);
 
   providers: ProviderInfo[] = [
     {
@@ -188,8 +191,9 @@ export class TranslationComponent implements OnInit {
     },
   ];
 
-  // Base term extraction prompt - used in Step 1
-  baseTermPrompt = `You are a professional linguistic analyst and terminology specialist.
+  // Base term extraction prompt - used in Step 1 (editable)
+  baseTermPrompt =
+    signal<string>(`You are a professional linguistic analyst and terminology specialist.
 ## Task Context
 You will receive text extracted from a document.
 The extraction MUST follow the file metadata:
@@ -226,7 +230,7 @@ Assign ONE category per term:
 ---
 ## Output Format (STRICT)
 You MUST output a table with EXACTLY 4 columns:
-| # | Source Term (English) | REQUIRED Translation (Arabic) | Category |`;
+| # | Source Term (English) | REQUIRED Translation (Arabic) | Category |`);
 
   // Default translation prompt for Step 2
   defaultTranslationPrompt = `You are a highly experienced professional translator with broad expertise across multiple domains, specializing in English to Arabic translation.
@@ -456,6 +460,8 @@ Rules:
         this.job = response.content.find((j) => j.uid === this.jobUid) || null;
         this.loading = false;
         if (this.job) {
+          // Update prompts with job-specific information
+          this.updatePromptsWithJobInfo();
           // Auto-fetch the bilingual file
           this.downloadOriginalFile();
         }
@@ -466,6 +472,36 @@ Rules:
         console.error('Failed to load job:', err);
       },
     });
+  }
+
+  /**
+   * Update prompts with job-specific information (target language)
+   */
+  private updatePromptsWithJobInfo(): void {
+    if (!this.job) return;
+
+    const targetLang = this.job.targetLang || 'Target Language';
+
+    // Update base term extraction prompt
+    const currentBasePrompt = this.baseTermPrompt();
+    const updatedBasePrompt = currentBasePrompt
+      .replace(/Target Language: Arabic/g, `Target Language: ${targetLang}`)
+      .replace(
+        /REQUIRED Translation \(Arabic\)/g,
+        `REQUIRED Translation (${targetLang})`,
+      )
+      .replace(/translations in Arabic/g, `translations in ${targetLang}`);
+    this.baseTermPrompt.set(updatedBasePrompt);
+
+    // Update translation prompt
+    const currentTranslationPrompt = this.defaultTranslationPrompt;
+    const updatedTranslationPrompt = currentTranslationPrompt.replace(
+      /English to Arabic translation/g,
+      `English to ${targetLang} translation`,
+    );
+    this.customPrompt.set(updatedTranslationPrompt);
+
+    console.log(`✅ Prompts updated for target language: ${targetLang}`);
   }
 
   async downloadOriginalFile(): Promise<void> {
@@ -755,6 +791,9 @@ Rules:
     this.showTermBaseTable.set(false);
     this.termBaseViewMode.set('table');
     this.baseTermTable.set(null);
+    this.isUploading.set(false);
+    this.uploadSuccess.set(false);
+    this.uploadMessage.set(null);
     // Re-download file
     this.originalFile = null;
     this.downloadOriginalFile();
@@ -779,7 +818,7 @@ Rules:
 
       let prompt = '';
       if (step === 1) {
-        prompt = this.baseTermPrompt;
+        prompt = this.baseTermPrompt();
       } else if (step === 2) {
         prompt = this.finalPrompt();
       }
@@ -826,14 +865,18 @@ Rules:
 
           setTimeout(() => {
             this.translatedBlob.set(result.blob);
-            this.translatedFilename.set(result.filename);
+            // Use the job's original filename
+            const jobFilename = this.job?.filename || result.filename;
+            this.translatedFilename.set(jobFilename);
             this.progressStep.set('complete');
             this.nextStep();
           }, 500);
         }
       } else if (step === 2) {
         this.translatedBlob.set(result.blob);
-        this.translatedFilename.set(result.filename);
+        // Use the job's original filename
+        const jobFilename = this.job?.filename || result.filename;
+        this.translatedFilename.set(jobFilename);
         this.progressStep.set('complete');
         this.nextStep();
       }
@@ -879,6 +922,73 @@ Rules:
     } catch (error: any) {
       console.error('❌ Download failed:', error);
       this.errorMessage.set(`Download failed: ${error.message}`);
+    }
+  }
+
+  async uploadToPhrase(): Promise<void> {
+    const table = this.termBaseTable();
+    const filename = this.translatedFilename();
+
+    if (!filename) {
+      this.uploadMessage.set('No file to upload');
+      return;
+    }
+
+    this.isUploading.set(true);
+    this.uploadSuccess.set(false);
+    this.uploadMessage.set(null);
+    this.errorMessage.set(null);
+
+    try {
+      let blob: Blob;
+
+      // Build the file (same logic as download)
+      if (table && table.headers.length > 0 && table.rows.length > 0) {
+        console.log('📊 Rebuilding DOCX from edited table data for upload...');
+        blob = await this.docxService.buildDocxFromTable(
+          table.headers,
+          table.rows,
+          filename,
+        );
+      } else {
+        const originalBlob = this.translatedBlob();
+        if (!originalBlob) {
+          this.uploadMessage.set('No translation data available');
+          this.isUploading.set(false);
+          return;
+        }
+        blob = originalBlob;
+      }
+
+      // Create File object for upload
+      const file = new File([blob], filename, {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      if (!this.jobUid) {
+        this.uploadMessage.set('Job UID is missing');
+        this.isUploading.set(false);
+        return;
+      }
+
+      console.log('📤 Uploading bilingual file to Phrase TMS...');
+      await this.phraseApi.uploadBilingualFile(
+        this.jobUid,
+        file,
+        'Confirmed',
+        true,
+      );
+
+      this.uploadSuccess.set(true);
+      this.uploadMessage.set('File uploaded successfully to Phrase TMS!');
+      console.log('✅ Upload complete');
+    } catch (error: any) {
+      console.error('❌ Upload failed:', error);
+      this.uploadMessage.set(`Upload failed: ${error.message}`);
+      this.errorMessage.set(`Upload failed: ${error.message}`);
+      this.isUploading.set(false);
+    } finally {
+      this.isUploading.set(false);
     }
   }
 

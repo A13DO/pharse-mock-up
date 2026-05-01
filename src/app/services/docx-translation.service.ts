@@ -338,18 +338,13 @@ export class DocxTranslationService {
     let extractFn: (data: any) => string;
 
     if (provider === 'anthropic') {
-      // Routed through local proxy to bypass Anthropic CORS restriction
-      url = `${PROXY_BASE}/api/anthropic`;
-      body = {
-        apiKey,
-        body: {
-          model: model || 'claude-opus-4-20250514',
-          max_tokens: 4096,
-          system: SYSTEM_PROMPT,
-          messages: [{ role: 'user', content: userMessage }],
-        },
-      };
-      extractFn = (d) => d.content[0].text;
+      // Use Phrase proxy endpoint for Claude
+      const encodedText = encodeURIComponent(userMessage);
+      console.log(userMessage);
+      
+      url = `https://phrase.runasp.net/api/Glossary/extract?text=${encodedText}`;
+      body = {};
+      extractFn = (d) => d.result;
     } else if (provider === 'openai') {
       // Routed through local proxy to bypass OpenAI CORS restriction
       url = `${PROXY_BASE}/api/openai`;

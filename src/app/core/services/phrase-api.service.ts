@@ -479,6 +479,47 @@ export class PhraseApiService {
     });
   }
 
+  /**
+   * Upload translated bilingual file back to Phrase TMS
+   * @param jobUid - Job unique identifier
+   * @param file - Translated bilingual DOCX file
+   * @param saveToTransMemory - Save to translation memory ('None', 'Confirmed', 'All')
+   * @param setCompleted - Mark job as completed
+   * @returns Promise with the upload response
+   */
+  uploadBilingualFile(
+    jobUid: string,
+    file: File,
+    saveToTransMemory: 'None' | 'Confirmed' | 'All' = 'Confirmed',
+    setCompleted: boolean = true,
+  ): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const url = `https://phrase.runasp.net/api/Jobs/bilingual-files`;
+
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+
+      this.http
+        .post(url, formData, {
+          params: {
+            jobUid,
+            saveToTransMemory,
+            setCompleted: setCompleted.toString(),
+          },
+          observe: 'response',
+        })
+        .pipe(catchError(this.handleError))
+        .subscribe({
+          next: (response) => {
+            resolve(response.body);
+          },
+          error: (error) => {
+            reject(error);
+          },
+        });
+    });
+  }
+
   private handleError(error: any): Observable<never> {
     let errorMessage = 'An error occurred';
 

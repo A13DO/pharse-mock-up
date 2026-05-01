@@ -7,7 +7,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = authService.getToken();
 
   // Add Bearer token to Phrase API requests
-  if (token && req.url.includes('cloud.memsource.com')) {
+  if (token && (req.url.includes('cloud.memsource.com') || req.url.includes('phrase.runasp.net'))) {
     const authReq = req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`,

@@ -213,6 +213,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- Extraction Prompt -->
+        <div class="prompt-section">
+            <h2 class="section-title">TermBase Extraction Instructions</h2>
+            <textarea class="prompt-textarea"
+                placeholder="Enter your custom extraction instructions, specify which types of terms to extract, and formatting requirements."
+                [(ngModel)]="baseTermPrompt" [disabled]="isProcessing()" rows="8"></textarea>
+            <p class="prompt-hint">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    style="vertical-align: middle;">
+                    <circle cx="12" cy="12" r="10" stroke-width="2" />
+                    <line x1="12" y1="16" x2="12" y2="12" stroke-width="2" stroke-linecap="round" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                Customize the extraction instructions above before clicking "Extract TermBase"
+            </p>
+        </div>
     </div>
     }
 
@@ -511,6 +528,30 @@
         </div>
         }
 
+        <!-- Upload Success Message -->
+        @if (uploadSuccess()) {
+        <div class="upload-success-banner">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                <path d="M22 4L12 14.01l-3-3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>{{ uploadMessage() }}</span>
+        </div>
+        }
+
+        <!-- Upload Error Message -->
+        @if (uploadMessage() && !uploadSuccess()) {
+        <div class="upload-error-banner">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="10" stroke-width="2" />
+                <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round" />
+                <line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <span>{{ uploadMessage() }}</span>
+        </div>
+        }
+
         <!-- Download Button -->
         <div class="success-actions">
             <button class="download-btn" (click)="downloadTranslation()">
@@ -519,6 +560,18 @@
                         stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
                 Download Bilingual DOCX
+            </button>
+            <button class="upload-btn" (click)="uploadToPhrase()" [disabled]="isUploading()">
+                @if (isUploading()) {
+                <div class="spinner-sm"></div>
+                Uploading...
+                } @else {
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Upload to Phrase
+                }
             </button>
             <button class="reset-btn" (click)="resetWorkflow()">
                 Start Over
