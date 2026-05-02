@@ -196,156 +196,113 @@ export class TranslationComponent implements OnInit {
 
   // Base term extraction prompt - used in Step 1 (editable)
   baseTermPrompt =
-    signal<string>(`You are a professional linguistic analyst and terminology specialist.
-## Task Context
-You will receive text extracted from a document.
-The extraction MUST follow the file metadata:
-- Source Language: English
-- Target Language: Arabic
-You MUST extract terminology based on the source language and provide the required translation in the target language.
----
+    signal<string>(`You are a professional terminology specialist.
+
 ## Task
-Extract and create a TermBase table with the following columns:
-# | Source Term (English) | REQUIRED Translation (Arabic) | Category
-Number each row starting from 1.
----
-## Extraction Scope (STRICT)
-You MUST extract ONLY the following types of terms:
-1. Company names (اسماء الشركات)
-2. People names (الاشخاص)
-3. Abbreviations (الاختصارات)
-4. Main key terms (المصطلحات الرئيسية في الملف)
----
+
+Extract key terms from the provided English text and translate them into aa.
+
+## Extract ONLY:
+
+* Company names
+* People names
+* Abbreviations
+* Main key terms
+
 ## Rules
-- Extract terms EXACTLY as they appear in the source text
-- Do NOT modify or normalize source terms
-- Provide accurate and professional translations in Arabic
-- Use consistent translation for repeated terms
-- Do NOT include duplicates (same term more than once)
-- Do NOT include irrelevant words
----
-## Category Rules
-Assign ONE category per term:
-- Company names (اسماء الشركات)
-- People names (الاشخاص)
-- Abbreviations (الاختصارات)
-- Main key terms (المصطلحات الرئيسية في الملف)
----
-## Output Format (STRICT)
-You MUST output a table with EXACTLY 4 columns:
-| # | Source Term (English) | REQUIRED Translation (Arabic) | Category |`);
+
+* Keep source terms exactly as written
+* Provide accurate translations in aa
+* No duplicates
+* Ignore irrelevant words
+* Use consistent terminology
+
+## Output
+
+Return a table:
+
+| # | Source Term (English) | REQUIRED Translation (aa) | Category |
+
+* Number rows starting from 1
+* Assign ONE category per term`);
 
   // Default translation prompt for Step 2
-  defaultTranslationPrompt = `You are a highly experienced professional translator with broad expertise across multiple domains, specializing in English to Arabic translation.
+  defaultTranslationPrompt = `You are a professional English to aa translator with strong domain expertise.
 
-## Task Context
-You will receive text segments in numbered cells extracted from a document.
+## Task
 
-The file is part of a translation workflow. You MUST:
-* Perform translation according to the project metadata (domain, tone, and context if provided).
-* Follow the translation instructions strictly.
-* Ensure the output is suitable for localization workflows (e.g., Phrase integration).
-* If metadata is provided (legal, technical, marketing, etc.), adapt tone accordingly.
+You will receive numbered text segments from a document.
 
----
+For each segment:
 
-## ⚠️ TERMINOLOGY COMPLIANCE — HIGHEST PRIORITY ⚠️
-
-This is the MOST CRITICAL requirement. You MUST follow the terminology glossary as specified. This is NON-NEGOTIABLE.
-
-**MANDATORY RULES FOR TERMINOLOGY:**
-* When a source term from the glossary appears in the source text, you MUST use the corresponding translation EXACTLY.
-* No synonyms, no alternatives, no variations.
-* This applies to EVERY occurrence.
-* If repeated → same translation EVERY time.
-* Glossary OVERRIDES your preferences.
-
-**CAPITALIZATION RULES:**
-* Apply natural Arabic usage.
-* Proper nouns must remain consistent.
+* Translate accurately based on context and metadata if provided
+* Ensure output is suitable for localization workflows such as Phrase
+* Adapt tone if needed
 
 ---
 
-## 📋 MANDATORY TERMINOLOGY GLOSSARY
+## Terminology Compliance – Critical
 
-| # | Source Term (English) | REQUIRED Translation (Arabic) | Category |
+You MUST follow the glossary strictly:
+
+* Use the exact required translation for each listed term
+* No synonyms or variations allowed
+* Repeat the same translation every time the term appears
+* Glossary rules override all other choices
+
+## Glossary
+
+| # | Source Term (English) | REQUIRED Translation (aa) | Category |
 |---|---|---|---|
-| 1 | Example Term | مثال | Company names (اسماء الشركات) |
+| 1 | Example Term | مثال | Company names |
 
-**REMINDER: Every term above MUST appear in your translation exactly as specified whenever the source term appears in the source text.**
-
----
-
-## Translation Process (VERY IMPORTANT)
-
-For EACH cell, you MUST produce TWO translations:
-
-### 1) Initial Translation (Draft)
-* Accurate, complete translation
-* May be slightly literal
-* MUST respect glossary strictly
-
-### 2) Final Translation (Post-Edited)
-* Fully refined, natural, and idiomatic Arabic
-* Professionally rewritten if needed
-* Improved flow and readability
-* MUST strictly respect glossary terms
-* This is the FINAL version to be used in production
-
-🚨 The FINAL translation (Column 4) is the one that will be exported to Phrase.
+**REMINDER: Every term above MUST be used exactly as specified.**
 
 ---
 
-## Other Critical Rules
+## Output Requirement
 
-### 1. COMPLETE TRANSLATION
-Translate EVERYTHING. No skipping.
+For each cell, provide two versions:
 
-### 2. NO MODIFICATIONS
-Do NOT add/remove meaning.
+1. Initial Translation
+   Accurate and complete, may be slightly literal, must follow glossary
 
-### 3. PRESERVE TAGS
-Keep ALL placeholders exactly:
-{1}, <1>, </1>, etc.
-
-### 4. MAINTAIN FORMATTING
-Keep structure exactly as-is.
-
-### 5. PROFESSIONAL + NATURAL ARABIC
-* Avoid literal translation
-* Use fluent, native Arabic
-* Restructure if needed
+2. Final Translation
+   Natural, fluent, polished translation
+   Improved readability
+   Strictly follows glossary
+   This is the version used for export
 
 ---
 
-## Output Format (STRICT)
+## Rules
 
-You MUST output a table with EXACTLY 4 columns:
+* Translate everything
+* Do not change meaning
+* Preserve placeholders like {1} and <1>
+* Keep formatting exactly
+* Use natural, professional language
+
+---
+
+## Output Format
 
 | Cell # | Source | Initial Translation | Final Translation |
 
-Rules:
-* Do NOT merge cells
-* Do NOT skip cells
-* Keep numbering EXACT
+* Keep all cells
+* Do not merge or skip
+* Keep numbering exact
 
 ---
 
-## Important Note for Integration
+## Note
 
-* The "Final Translation" column is the ONLY column that should be used for export to Phrase.
-* Ensure it is clean, polished, and production-ready.
-
----
-
-## Delivery
-
-* Translate all cells provided in each batch
-* Maintain consistency across batches`;
+Final Translation column is the only one used for Phrase export
+Ensure it is clean and production-ready`;
 
   // Quick prompt examples
   quickPrompts = [
-    'Extract and create a TermBase table with columns: # | Source Term (English) | REQUIRED Translation (Arabic) | Category. Number each row starting from 1.',
+    'Extract key terms and translate them into aa. Return a table with columns: # | Source Term (English) | REQUIRED Translation (aa) | Category',
     'Translate this document to Spanish while maintaining professional tone and technical accuracy.',
     'Translate to French. Keep all proper nouns and brand names unchanged.',
     'Translate to German. Preserve all formatting, bullet points, and numbered lists exactly.',
@@ -490,22 +447,16 @@ Rules:
 
     const targetLang = this.job.targetLang || 'Target Language';
 
-    // Update base term extraction prompt
+    // Update base term extraction prompt - replace placeholder "aa" with actual target language
     const currentBasePrompt = this.baseTermPrompt();
-    const updatedBasePrompt = currentBasePrompt
-      .replace(/Target Language: Arabic/g, `Target Language: ${targetLang}`)
-      .replace(
-        /REQUIRED Translation \(Arabic\)/g,
-        `REQUIRED Translation (${targetLang})`,
-      )
-      .replace(/translations in Arabic/g, `translations in ${targetLang}`);
+    const updatedBasePrompt = currentBasePrompt.replace(/\baa\b/g, targetLang);
     this.baseTermPrompt.set(updatedBasePrompt);
 
-    // Update translation prompt
+    // Update translation prompt - replace placeholder "aa" with actual target language
     const currentTranslationPrompt = this.defaultTranslationPrompt;
     const updatedTranslationPrompt = currentTranslationPrompt.replace(
-      /English to Arabic translation/g,
-      `English to ${targetLang} translation`,
+      /\baa\b/g,
+      targetLang,
     );
     this.customPrompt.set(updatedTranslationPrompt);
 
