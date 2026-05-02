@@ -68,5 +68,13 @@ export const routes: Routes = [
         (m) => m.SettingsComponent,
       ),
   },
+  {
+    path: 'allowed-users',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/allowed-users/allowed-users.component').then(
+        (m) => m.AllowedUsersComponent,
+      ),
+  },
   { path: '**', redirectTo: '/login' },
 ];

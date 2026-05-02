@@ -13,6 +13,7 @@ import {
   lucideAlertTriangle,
   lucideLogOut,
   lucideUser,
+  lucideUsers,
 } from '@ng-icons/lucide';
 
 @Component({
@@ -36,6 +37,7 @@ import {
       lucideAlertTriangle,
       lucideLogOut,
       lucideUser,
+      lucideUsers,
     }),
   ],
 })
@@ -46,6 +48,7 @@ export class SidebarComponent {
   menuItems = [
     { path: '/projects', label: 'Projects', icon: 'lucideFolder' },
     { path: '/ai-translate', label: 'AI Translation', icon: 'lucideBolt' },
+    { path: '/allowed-users', label: 'Allowed Users', icon: 'lucideUsers' },
     { path: '/settings', label: 'Settings', icon: 'lucideSettings' },
   ];
 
