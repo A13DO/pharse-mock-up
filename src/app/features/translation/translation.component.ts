@@ -522,6 +522,10 @@ Rules:
       return;
     }
 
+    console.log('\n📥 DOWNLOADING BILINGUAL FILE from Phrase TMS...');
+    console.log('   🔗 Project UID:', this.projectUid);
+    console.log('   🔗 Job UID:', this.jobUid);
+
     this.isDownloadingFile = true;
     this.error = null;
 
@@ -529,13 +533,14 @@ Rules:
       const blob = await this.phraseApi.downloadBilingualFile(
         this.projectUid,
         [this.jobUid],
-        'DOCX',
+        'MXLF',
       );
 
+      console.log('✅ File downloaded successfully!');
       console.log(
-        '📦 Bilingual file blob size:',
-        blob.size,
-        'bytes | type:',
+        '   📊 Blob size:',
+        (blob.size / 1024).toFixed(2),
+        'KB | type:',
         blob.type,
       );
 
@@ -549,29 +554,37 @@ Rules:
 
       const baseName =
         this.job?.filename?.replace(/\.[^.]+$/, '') || 'document';
-      const fileName = `${baseName}_bilingual.docx`;
+      const fileName = `${baseName}_bilingual.mxlf`;
 
-      const mimeType =
-        blob.type ||
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const mimeType = blob.type || 'application/x-xliff+xml';
       this.originalFile = new File([blob], fileName, { type: mimeType });
 
       // Store the original buffer in the service
       const arrayBuffer = await blob.arrayBuffer();
-      this.docxService.setOriginalDocxBuffer(arrayBuffer);
+      this.docxService.setOriginalBuffer(arrayBuffer);
 
-      // Extract segment IDs from the original DOCX
+      // Extract segment IDs from the original MXLIFF
+      console.log('\n🔍 EXTRACTING SEGMENT STRUCTURE...');
       try {
-        const segments = await this.docxService.extractSegmentsWithIds();
+        const segments = await this.docxService.extractSegmentsFromMxliff();
         this.segmentIdMap.set(segments);
-        console.log(`✅ Extracted ${segments.length} segment IDs`);
+        console.log('✅ Segment structure extracted!');
+        console.log(`   📊 Total segments with IDs: ${segments.length}`);
+        if (segments.length > 0) {
+          console.log('   📄 Sample segments:');
+          segments.slice(0, 3).forEach((seg, i) => {
+            console.log(
+              `      ${i + 1}. Segment #${seg.segNum}: ${seg.sourceText.substring(0, 60)}...`,
+            );
+          });
+        }
       } catch (error: any) {
         console.warn('⚠️ Failed to extract segment IDs:', error.message);
         // Continue anyway - the app can still work without segment IDs
       }
 
       this.isDownloadingFile = false;
-      console.log('✅ Bilingual file loaded successfully:', fileName);
+      console.log('\n✅ Bilingual file loaded successfully:', fileName);
 
       // Extract and preview
       await this.extractAndPreviewFile(this.originalFile);
@@ -584,20 +597,126 @@ Rules:
 
   private async extractAndPreviewFile(file: File): Promise<void> {
     try {
-      const extractedText = await this.docxService.extractTextFromFile(file);
-      const previewText =
-        extractedText.length > 2000
-          ? extractedText.substring(0, 2000) + '...'
-          : extractedText;
-      this.filePreview.set(previewText);
-      this.showPreview.set(true);
-      console.log('✅ File preview ready:', extractedText.length, 'chars');
+      // First, check if it's an MXLIFF file
+      const fileName = file.name.toLowerCase();
+      const isMxliff =
+        fileName.endsWith('.mxlf') ||
+        fileName.endsWith('.mxliff') ||
+        fileName.endsWith('.xliff');
+
+      if (isMxliff) {
+        // For MXLIFF files, show source/target pairs
+        const arrayBuffer = await file.arrayBuffer();
+        const segments =
+          await this.docxService.extractMxliffSegmentsForPreview(arrayBuffer);
+
+        if (segments.length === 0) {
+          this.errorMessage.set('No segments found in MXLIFF file');
+          this.filePreview.set('');
+          this.showPreview.set(false);
+          return;
+        }
+
+        // Create JSON-like preview
+        let previewHtml = '<div style="max-height: 400px; overflow-y: auto;">';
+        previewHtml +=
+          '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+        previewHtml +=
+          '<thead><tr style="background: #f3f4f6; position: sticky; top: 0; z-index: 10;">';
+        previewHtml +=
+          '<th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left; width: 40px;">#</th>';
+        previewHtml +=
+          '<th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left; width: 45%;">Source</th>';
+        previewHtml +=
+          '<th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left; width: 45%;">Target</th>';
+        previewHtml += '</tr></thead><tbody>';
+
+        segments.slice(0, 50).forEach((segment, i) => {
+          previewHtml += '<tr>';
+          previewHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: 600; color: #6b7280;">${i + 1}</td>`;
+          previewHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb;">${this.escapeHtml(segment.source)}</td>`;
+
+          if (segment.target) {
+            previewHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; background: #f0fdf4;">${this.escapeHtml(segment.target)}</td>`;
+          } else {
+            previewHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; color: #9ca3af; font-style: italic;">Empty</td>`;
+          }
+          previewHtml += '</tr>';
+        });
+
+        if (segments.length > 50) {
+          previewHtml +=
+            '<tr><td colspan="3" style="padding: 8px; text-align: center; color: #6b7280; font-style: italic;">';
+          previewHtml += `... and ${segments.length - 50} more segments</td></tr>`;
+        }
+
+        previewHtml += '</tbody></table></div>';
+
+        // Calculate total characters
+        const totalChars = segments.reduce(
+          (sum, seg) => sum + seg.source.length + seg.target.length,
+          0,
+        );
+        previewHtml += `<div style="margin-top: 12px; font-size: 13px; color: #6b7280;">Total: ${segments.length} segments | ${totalChars} characters</div>`;
+
+        this.filePreview.set(previewHtml);
+        this.showPreview.set(true);
+        console.log('✅ MXLIFF preview ready:', segments.length, 'segments');
+      } else {
+        // For other files (DOCX), use simple text extraction
+        const extractedText = await this.docxService.extractTextFromFile(file);
+
+        // Create a formatted table preview
+        const segments = extractedText.split('\n\n').filter((s) => s.trim());
+        let previewHtml = '<div style="max-height: 300px; overflow-y: auto;">';
+        previewHtml +=
+          '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+        previewHtml +=
+          '<thead><tr style="background: #f3f4f6; position: sticky; top: 0;">';
+        previewHtml +=
+          '<th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left; width: 50px;">#</th>';
+        previewHtml +=
+          '<th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left;">Source Text</th>';
+        previewHtml += '</tr></thead><tbody>';
+
+        segments.slice(0, 50).forEach((segment, i) => {
+          previewHtml += '<tr>';
+          previewHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb; font-weight: 600; color: #6b7280;">${i + 1}</td>`;
+          previewHtml += `<td style="padding: 8px; border: 1px solid #e5e7eb;">${this.escapeHtml(segment)}</td>`;
+          previewHtml += '</tr>';
+        });
+
+        if (segments.length > 50) {
+          previewHtml +=
+            '<tr><td colspan="2" style="padding: 8px; text-align: center; color: #6b7280; font-style: italic;">';
+          previewHtml += `... and ${segments.length - 50} more segments</td></tr>`;
+        }
+
+        previewHtml += '</tbody></table></div>';
+        previewHtml += `<div style="margin-top: 12px; font-size: 13px; color: #6b7280;">Total: ${segments.length} segments | ${extractedText.length} characters</div>`;
+
+        this.filePreview.set(previewHtml);
+        this.showPreview.set(true);
+        console.log(
+          '✅ File preview ready:',
+          extractedText.length,
+          'chars,',
+          segments.length,
+          'segments',
+        );
+      }
     } catch (error: any) {
       console.error('❌ Preview extraction failed:', error);
       this.errorMessage.set(`Failed to extract file content: ${error.message}`);
       this.filePreview.set('');
       this.showPreview.set(false);
     }
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   selectProvider(provider: Provider): void {
@@ -887,6 +1006,12 @@ Rules:
 
     if (!file) return;
 
+    console.log('\n🎯 ============ STARTING TRANSLATION ============');
+    console.log('📍 Workflow Step:', step);
+    console.log('🤖 Provider:', provider.toUpperCase());
+    console.log('📂 File:', file.name);
+    console.log('================================================\n');
+
     this.errorMessage.set(null);
     this.translatedBlob.set(null);
     this.progressStep.set('reading');
@@ -897,8 +1022,14 @@ Rules:
       let prompt = '';
       if (step === 1) {
         prompt = this.baseTermPrompt();
+        console.log('📝 Using TermBase extraction prompt');
+        console.log('   Length:', prompt.length, 'chars');
       } else if (step === 2) {
         prompt = this.finalPrompt();
+        console.log('📝 Using translation prompt with glossary');
+        console.log('   Length:', prompt.length, 'chars');
+        const glossaryLines = this.baseTermTable()?.rows.length || 0;
+        console.log('   📚 Glossary terms:', glossaryLines);
       }
 
       const result = await this.docxService.translateDocument(
@@ -912,9 +1043,14 @@ Rules:
       this.progressStep.set('building');
 
       this.aiResponse.set(result.responseText);
+      console.log('\n📊 PARSING AI RESPONSE...');
       const tableData = this.parseMarkdownTable(result.responseText);
 
       if (tableData) {
+        console.log('✅ Table structure detected!');
+        console.log('   📋 Headers:', tableData.headers.join(', '));
+        console.log('   📊 Rows:', tableData.rows.length);
+
         if (step === 1) {
           this.baseTermTable.set(tableData);
           this.showTermBaseTable.set(true);
@@ -944,9 +1080,16 @@ Rules:
           // Build translations array by mapping table rows to segment IDs
           const translations = await this.buildTranslationsFromTable(tableData);
 
-          // Inject translations into original DOCX
-          const modifiedBlob =
-            await this.docxService.injectTranslationsAndBuild(translations);
+          // Inject translations into original file (MXLIFF or DOCX)
+          const fileName = file.name.toLowerCase();
+          const isMxliff =
+            fileName.endsWith('.mxlf') ||
+            fileName.endsWith('.mxliff') ||
+            fileName.endsWith('.xliff');
+
+          const modifiedBlob = isMxliff
+            ? await this.docxService.injectTranslationsIntoMxliff(translations)
+            : await this.docxService.injectTranslationsAndBuild(translations);
 
           setTimeout(() => {
             this.translatedBlob.set(modifiedBlob);
@@ -982,15 +1125,30 @@ Rules:
 
     if (!filename) return;
 
+    console.log('\n💾 PREPARING DOWNLOAD...');
+    console.log('   📂 Filename:', filename);
+
     try {
       let blob: Blob;
 
       if (table && table.headers.length > 0 && table.rows.length > 0) {
-        console.log('📊 Re-injecting translations from edited table data...');
+        console.log('   ✏️ Table was edited, re-injecting translations...');
+        console.log('   📊 Table rows to inject:', table.rows.length);
         // Build translations array from edited table
         const translations = await this.buildTranslationsFromTable(table);
-        // Inject into original DOCX structure
-        blob = await this.docxService.injectTranslationsAndBuild(translations);
+        console.log('   📊 Translations built:', translations.length);
+
+        // Check file type and use appropriate injection method
+        const fileName = this.originalFile?.name.toLowerCase() || '';
+        const isMxliff =
+          fileName.endsWith('.mxlf') ||
+          fileName.endsWith('.mxliff') ||
+          fileName.endsWith('.xliff');
+
+        // Inject into original file structure
+        blob = isMxliff
+          ? await this.docxService.injectTranslationsIntoMxliff(translations)
+          : await this.docxService.injectTranslationsAndBuild(translations);
       } else {
         const originalBlob = this.translatedBlob();
         if (!originalBlob) return;
@@ -1022,6 +1180,10 @@ Rules:
       return;
     }
 
+    console.log('\n📤 ============ UPLOADING TO PHRASE TMS ============');
+    console.log('   📂 File:', filename);
+    console.log('   🔗 Job UID:', this.jobUid);
+
     this.isUploading.set(true);
     this.uploadSuccess.set(false);
     this.uploadMessage.set(null);
@@ -1032,13 +1194,22 @@ Rules:
 
       // Build the file (same logic as download)
       if (table && table.headers.length > 0 && table.rows.length > 0) {
-        console.log(
-          '📊 Re-injecting translations from edited table data for upload...',
-        );
+        console.log('   ✏️ Using edited table data...');
+        console.log('   📊 Table rows:', table.rows.length);
         // Build translations array from edited table
         const translations = await this.buildTranslationsFromTable(table);
-        // Inject into original DOCX structure
-        blob = await this.docxService.injectTranslationsAndBuild(translations);
+
+        // Check file type and use appropriate injection method
+        const fileName = this.originalFile?.name.toLowerCase() || '';
+        const isMxliff =
+          fileName.endsWith('.mxlf') ||
+          fileName.endsWith('.mxliff') ||
+          fileName.endsWith('.xliff');
+
+        // Inject into original file structure
+        blob = isMxliff
+          ? await this.docxService.injectTranslationsIntoMxliff(translations)
+          : await this.docxService.injectTranslationsAndBuild(translations);
       } else {
         const originalBlob = this.translatedBlob();
         if (!originalBlob) {
@@ -1050,8 +1221,18 @@ Rules:
       }
 
       // Create File object for upload
+      const fileName = this.originalFile?.name.toLowerCase() || '';
+      const isMxliff =
+        fileName.endsWith('.mxlf') ||
+        fileName.endsWith('.mxliff') ||
+        fileName.endsWith('.xliff');
+
+      const mimeType = isMxliff
+        ? 'application/x-xliff+xml'
+        : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
       const file = new File([blob], filename, {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        type: mimeType,
       });
 
       if (!this.jobUid) {

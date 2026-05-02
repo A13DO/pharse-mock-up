@@ -229,6 +229,15 @@ export class PhraseApiService {
       .get<ProjectsResponse>('https://phrase.runasp.net/api/Phrase/projects')
       .pipe(catchError(this.handleError));
   }
+  // getProjects(): Observable<any> {
+  //   const headers = new HttpHeaders({
+  //     accept: 'text/plain',
+  //     Authorization:
+  //       'ApiToken xZ0U2u2OqE0nqvliTqRvFR0ucGs7twJbaRHniMxy0ablVPpv8gLd4Dp3kNrvcNWo3',
+  //   });
+
+  //   return this.http.get('https://phrase.runasp.net/api/Phrase/projects');
+  // }
 
   getProject(projectUid: string): Observable<ProjectDetail> {
     return this.http
@@ -292,15 +301,12 @@ export class PhraseApiService {
     });
   }
   /**
-   * Get all available languages from Memsource
+   * Get all available languages from Phrase
    * @returns Observable of languages response
    */
   getLanguages(): Observable<LanguagesResponse> {
     return this.http
-      .get<LanguagesResponse>(`${this.memsourceBaseUrl}/languages`, {
-        headers: this.getHeaders(),
-        withCredentials: true,
-      })
+      .get<LanguagesResponse>('https://phrase.runasp.net/api/Phrase/languages')
       .pipe(catchError(this.handleError));
   }
 
@@ -563,6 +569,18 @@ export class PhraseApiService {
         error.error?.errorDescription ||
         error.error?.message ||
         `Error Code: ${error.status}\nMessage: ${error.message}`;
+
+      // Log 401 errors with more detail
+      if (error.status === 401) {
+        console.error('❌ 401 Unauthorized Error Details:', {
+          url: error.url,
+          status: error.status,
+          statusText: error.statusText,
+          headers: error.headers,
+          error: error.error,
+          message: error.message,
+        });
+      }
     }
 
     console.error('API Error:', error);

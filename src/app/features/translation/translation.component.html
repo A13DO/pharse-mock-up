@@ -184,7 +184,7 @@
     }
 
     <!-- File Preview (available in all steps) -->
-    @if (filePreview() && originalFile) {
+    <!-- @if (filePreview() && originalFile) {
     <div class="preview-section">
         <div class="preview-header">
             <h2 class="section-title">Bilingual File Preview</h2>
@@ -205,11 +205,11 @@
         </div>
         @if (showPreview()) {
         <div class="preview-content">
-            <pre class="preview-text">{{ filePreview() }}</pre>
+            <div [innerHTML]="filePreview()"></div>
         </div>
         }
     </div>
-    }
+    } -->
 
     <!-- STEP 1: Extract TermBase -->
     @if (workflowStep() === 1) {

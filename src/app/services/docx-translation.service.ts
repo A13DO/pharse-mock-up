@@ -29,6 +29,7 @@ const SYSTEM_PROMPT =
 })
 export class DocxTranslationService {
   private originalDocxBuffer: ArrayBuffer | null = null;
+  private originalBuffer: ArrayBuffer | null = null;
   async translateDocument(
     file: File,
     customPrompt: string,
@@ -36,36 +37,70 @@ export class DocxTranslationService {
     apiKey: string,
     model = '',
   ): Promise<{ blob: Blob; filename: string; responseText: string }> {
-    console.log(
-      '🚀 Starting translation — provider:',
-      provider,
-      '— file:',
-      file.name,
-    );
+    console.log('\n🚀 ============ STARTING TRANSLATION WORKFLOW ============');
+    console.log('📂 File:', file.name);
+    console.log('🤖 Provider:', provider.toUpperCase());
+    console.log('🔧 Model:', model || '(default)');
+    console.log('📏 File size:', (file.size / 1024).toFixed(2), 'KB');
+    console.log('========================================================\n');
 
     // Step 1: Extract plain text (supports both DOCX and MXLIFF)
-    console.log('📖 Extracting text from file...');
+    console.log('\n📖 STEP 1: Extracting text from file...');
     const extractedText = await this.extractTextFromFile(file);
-    console.log('✅ Extracted', extractedText.length, 'chars');
+    console.log('✅ Extraction complete!');
+    console.log('   📊 Total characters extracted:', extractedText.length);
+    console.log(
+      '   📊 Total words (approx):',
+      extractedText.split(/\s+/).length,
+    );
+    console.log('   📄 Preview (first 200 chars):');
+    console.log(
+      '   ',
+      extractedText.substring(0, 200).replace(/\n/g, ' '),
+      '...',
+    );
 
     // Step 2: Call AI
-    console.log('🤖 Calling', provider, 'API...');
-    const userMessage = `INSTRUCTIONS: ${customPrompt}\n\nDOCUMENT:\n${extractedText}`;
+    console.log('\n🤖 STEP 2: Calling', provider.toUpperCase(), 'API...');
+    console.log('   📝 Prompt length:', customPrompt.length, 'chars');
+    console.log('   📝 Document length:', extractedText.length, 'chars');
+    console.log(
+      '   📝 Combined payload size:',
+      customPrompt.length + extractedText.length,
+      'chars',
+    );
     const translatedText = await this.callProvider(
       provider,
       apiKey,
-      userMessage,
+      customPrompt,
+      extractedText,
       model,
     );
-    console.log('✅ Translation received:', translatedText.length, 'chars');
+    console.log('✅ AI response received!');
+    console.log('   📊 Response length:', translatedText.length, 'chars');
+    console.log('   📄 Preview (first 300 chars):');
+    console.log(
+      '   ',
+      translatedText.substring(0, 300).replace(/\n/g, ' '),
+      '...',
+    );
 
     // Step 3: Rebuild DOCX
-    console.log('📝 Building DOCX...');
+    console.log('\n📝 STEP 3: Building DOCX file...');
     const blob = await this.buildDocx(translatedText);
-    console.log('✅ DOCX ready');
+    console.log('✅ DOCX file created!');
+    console.log('   📊 File size:', (blob.size / 1024).toFixed(2), 'KB');
 
-    const originalName = file.name.replace(/\.(docx|mxliff|xliff|xml)$/i, '');
+    const originalName = file.name.replace(
+      /\.(docx|mxlf|mxliff|xliff|xml)$/i,
+      '',
+    );
     const filename = `${originalName}_translated_${provider}.docx`;
+
+    console.log('\n✅ ============ TRANSLATION WORKFLOW COMPLETE ============');
+    console.log('📦 Output file:', filename);
+    console.log('========================================================\n');
+
     return { blob, filename, responseText: translatedText };
   }
 
@@ -80,6 +115,7 @@ export class DocxTranslationService {
     if (fileName.endsWith('.docx')) {
       return this.extractTextFromDocx(file);
     } else if (
+      fileName.endsWith('.mxlf') ||
       fileName.endsWith('.mxliff') ||
       fileName.endsWith('.xliff') ||
       fileName.endsWith('.xml')
@@ -94,7 +130,7 @@ export class DocxTranslationService {
 
   /**
    * Extract raw text from DOCX file
-   * For bilingual DOCX files, extracts text and filters out table headers/metadata
+   * For bilingual DOCX files from Phrase TMS, extracts ONLY source text from locked SDTs
    */
   private async extractTextFromDocx(file: File): Promise<string> {
     // Read the file into an ArrayBuffer first, outside the mammoth call
@@ -125,72 +161,74 @@ export class DocxTranslationService {
     }
 
     try {
-      // Extract HTML to get table structure
-      const result = await mammoth.convertToHtml({ arrayBuffer });
-      if (result.messages?.length) {
-        console.warn('⚠️ mammoth warnings:', result.messages);
+      // For bilingual DOCX files from Phrase TMS, use XML-based extraction
+      // to get only source segments (locked SDTs)
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      const documentXml = await zip.file('word/document.xml')?.async('text');
+
+      if (!documentXml) {
+        throw new Error('word/document.xml not found in DOCX');
       }
 
-      // Parse the HTML to extract table data
+      // Parse XML
       const parser = new DOMParser();
-      const htmlDoc = parser.parseFromString(result.value, 'text/html');
+      const xmlDoc = parser.parseFromString(documentXml, 'application/xml');
 
-      // Look for tables (bilingual DOCX files use tables)
-      const tables = htmlDoc.querySelectorAll('table');
+      // Check for parsing errors
+      const parserError = xmlDoc.querySelector('parsererror');
+      if (parserError) {
+        throw new Error('Failed to parse word/document.xml');
+      }
 
-      if (tables.length === 0) {
-        // No tables found, fall back to raw text
-        console.log('No tables found in DOCX, using raw text extraction');
+      // Find all SDT (Structured Document Tag) elements
+      const sdtElements = xmlDoc.querySelectorAll('sdt');
+      const sourceTexts: string[] = [];
+
+      sdtElements.forEach((sdt) => {
+        // Check if this SDT is LOCKED (source cell - read-only)
+        const lockElement = sdt.querySelector(
+          'sdtPr lock[w\\:val="sdtContentLocked"]',
+        );
+
+        // We want ONLY locked SDTs (source segments), skip unlocked ones (target segments)
+        if (!lockElement) {
+          return;
+        }
+
+        // Extract text from locked SDT (source segment)
+        const sdtContent = sdt.querySelector('sdtContent');
+        const textNodes = sdtContent?.querySelectorAll('t');
+        let sourceText = '';
+
+        textNodes?.forEach((textNode) => {
+          sourceText += textNode.textContent || '';
+        });
+
+        const trimmed = sourceText.trim();
+
+        // Filter out headers and metadata using the same logic
+        if (trimmed && this.isTranslatableContent(trimmed)) {
+          sourceTexts.push(trimmed);
+        }
+      });
+
+      if (sourceTexts.length === 0) {
+        console.warn(
+          '⚠️ No source segments found in locked SDTs, falling back to mammoth extraction',
+        );
+        // Fall back to mammoth if XML parsing didn't find source segments
         const rawResult = await mammoth.extractRawText({ arrayBuffer });
         return rawResult.value;
       }
 
-      // Extract text from table cells and filter intelligently
-      const extractedLines: string[] = [];
-      const seenTexts = new Set<string>(); // Track duplicates
-
-      tables.forEach((table) => {
-        const rows = table.querySelectorAll('tr');
-
-        rows.forEach((row, rowIndex) => {
-          const cells = row.querySelectorAll('td, th');
-          const cellTexts = Array.from(cells).map(
-            (cell) => cell.textContent?.trim() || '',
-          );
-
-          // Skip header rows (first few rows typically contain column headers)
-          if (rowIndex < 2) {
-            return;
-          }
-
-          // For bilingual tables, deduplicate texts within the same row
-          // (Source and Target columns may have identical text if not translated)
-          const uniqueRowTexts = new Set<string>();
-
-          cellTexts.forEach((text) => {
-            if (this.isTranslatableContent(text) && !uniqueRowTexts.has(text)) {
-              uniqueRowTexts.add(text);
-            }
-          });
-
-          // Add unique texts from this row to the global list
-          uniqueRowTexts.forEach((text) => {
-            if (!seenTexts.has(text)) {
-              seenTexts.add(text);
-              extractedLines.push(text);
-            }
-          });
-        });
-      });
-
-      const result_text = extractedLines.join('\n\n');
+      const result_text = sourceTexts.join('\n\n');
       console.log(
-        `✅ Extracted ${extractedLines.length} translatable lines from DOCX (filtered from ${tables[0]?.querySelectorAll('tr').length || 0} table rows)`,
+        `✅ Extracted ${sourceTexts.length} source segments from locked SDTs`,
       );
 
       return result_text;
     } catch (err: any) {
-      throw new Error(`mammoth failed to parse DOCX: ${err?.message || err}`);
+      throw new Error(`Failed to extract source text: ${err?.message || err}`);
     }
   }
 
@@ -295,18 +333,54 @@ export class DocxTranslationService {
         throw new Error('Invalid XML format in MXLIFF file.');
       }
 
-      // Extract text from <source> elements (original text to translate)
-      // In XLIFF/MXLIFF format, <source> contains the source text
-      const sourceElements = xmlDoc.querySelectorAll('source');
+      // Find the <body> element to avoid extracting from header preview skeleton
+      const bodyElement = xmlDoc.querySelector('body');
+      if (!bodyElement) {
+        throw new Error('No <body> element found in MXLIFF file.');
+      }
 
-      if (sourceElements.length === 0) {
+      // Extract text from <source> elements inside <trans-unit> within <body> only
+      const transUnits = bodyElement.querySelectorAll('trans-unit');
+
+      if (transUnits.length === 0) {
         throw new Error('No translatable content found in MXLIFF file.');
       }
 
       const extractedSegments: string[] = [];
-      sourceElements.forEach((element) => {
-        const content = element.textContent?.trim();
-        if (content) {
+      transUnits.forEach((transUnit) => {
+        // Get trans-unit ID to filter out metadata segments
+        const transUnitId = transUnit.getAttribute('id') || '';
+
+        // Real translation segments have IDs with format like "taskId:segmentNumber"
+        // Skip trans-units that don't match this pattern or are likely metadata
+        const hasValidId =
+          transUnitId.includes(':') && /:\d+$/.test(transUnitId);
+
+        if (!hasValidId) {
+          return; // Skip metadata segments
+        }
+
+        // Get the direct child <source> element (not from alt-trans)
+        const sourceElement = transUnit.querySelector(':scope > source');
+        const content = sourceElement?.textContent?.trim();
+
+        if (!content || content.length === 0) {
+          return;
+        }
+
+        // Additional filter: exclude segments with inline formatting tags (UI metadata)
+        const hasInlineFormatting =
+          content.includes('{i>') || content.includes('<i}');
+
+        // Exclude known metadata patterns
+        const isMetadata =
+          content.match(
+            /^(ace-arab|en-af|\d+|converter\d+|Memsource|MT|Click here to enter text\.)$/i,
+          ) ||
+          content.match(/^\{i>.*<i\}$/) ||
+          content.match(/^[A-Za-z0-9_-]+_dc\d+:\d+$/); // Segment IDs as content
+
+        if (!hasInlineFormatting && !isMetadata) {
           extractedSegments.push(content);
         }
       });
@@ -316,8 +390,12 @@ export class DocxTranslationService {
       }
 
       console.log(
-        `✅ Extracted ${extractedSegments.length} segments from MXLIFF`,
+        `✅ Extracted ${extractedSegments.length} source segments from MXLIFF`,
       );
+      console.log('   📄 Preview (first 3 segments):');
+      extractedSegments.slice(0, 3).forEach((seg, i) => {
+        console.log(`      ${i + 1}. ${seg}`);
+      });
 
       // Join segments with double newlines for readability
       return extractedSegments.join('\n\n');
@@ -326,10 +404,89 @@ export class DocxTranslationService {
     }
   }
 
+  /**
+   * Extract segments with source and target from MXLIFF for preview
+   * @returns Array of segment pairs with source and target text
+   */
+  async extractMxliffSegmentsForPreview(
+    fileBuffer: ArrayBuffer,
+  ): Promise<{ source: string; target: string }[]> {
+    try {
+      // Convert ArrayBuffer to string
+      const decoder = new TextDecoder('utf-8');
+      const xmlText = decoder.decode(fileBuffer);
+
+      // Parse XML
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+      // Check for parsing errors
+      const parserError = xmlDoc.querySelector('parsererror');
+      if (parserError) {
+        throw new Error('Failed to parse MXLIFF XML');
+      }
+
+      // Find the <body> element to avoid extracting from header preview skeleton
+      const bodyElement = xmlDoc.querySelector('body');
+      if (!bodyElement) {
+        return [];
+      }
+
+      // Extract source and target from trans-units
+      const transUnits = bodyElement.querySelectorAll('trans-unit');
+      const segments: { source: string; target: string }[] = [];
+
+      transUnits.forEach((transUnit) => {
+        // Get trans-unit ID to filter out metadata segments
+        const transUnitId = transUnit.getAttribute('id') || '';
+
+        // Real translation segments have IDs with format like "taskId:segmentNumber"
+        // Skip trans-units that don't match this pattern or are likely metadata
+        const hasValidId =
+          transUnitId.includes(':') && /:\d+$/.test(transUnitId);
+
+        if (!hasValidId) {
+          return; // Skip metadata segments
+        }
+
+        const sourceElement = transUnit.querySelector(':scope > source');
+        const targetElement = transUnit.querySelector(':scope > target');
+
+        const sourceText = sourceElement?.textContent?.trim() || '';
+        const targetText = targetElement?.textContent?.trim() || '';
+
+        // Additional filter: exclude segments with inline formatting tags (UI metadata)
+        const hasInlineFormatting =
+          sourceText.includes('{i>') || sourceText.includes('<i}');
+
+        // Exclude known metadata patterns
+        const isMetadata =
+          sourceText.match(
+            /^(ace-arab|en-af|\d+|converter\d+|Memsource|MT|Click here to enter text\.)$/i,
+          ) ||
+          sourceText.match(/^\{i>.*<i\}$/) ||
+          sourceText.match(/^[A-Za-z0-9_-]+_dc\d+:\d+$/); // Segment IDs as content
+
+        if (sourceText && !hasInlineFormatting && !isMetadata) {
+          segments.push({
+            source: sourceText,
+            target: targetText,
+          });
+        }
+      });
+
+      return segments;
+    } catch (error: any) {
+      console.error('❌ Failed to extract MXLIFF segments for preview:', error);
+      return [];
+    }
+  }
+
   private async callProvider(
     provider: Provider,
     apiKey: string,
-    userMessage: string,
+    systemPrompt: string,
+    documentText: string,
     model: string,
   ): Promise<string> {
     let url: string;
@@ -341,14 +498,15 @@ export class DocxTranslationService {
 
     if (provider === 'anthropic') {
       // Use Phrase proxy endpoint for Claude
-      const encodedText = encodeURIComponent(userMessage);
-      console.log(userMessage);
-
+      // Endpoint only accepts text as query parameter, combine prompt and document
+      const fullText = `INSTRUCTIONS: ${systemPrompt}\n\nDOCUMENT:\n${documentText}`;
+      const encodedText = encodeURIComponent(fullText);
       url = `https://phrase.runasp.net/api/Glossary/extract?text=${encodedText}`;
       body = {};
       extractFn = (d) => d.result;
     } else if (provider === 'openai') {
       // Routed through local proxy to bypass OpenAI CORS restriction
+      const userMessage = `INSTRUCTIONS: ${systemPrompt}\n\nDOCUMENT:\n${documentText}`;
       url = `${PROXY_BASE}/api/openai`;
       body = {
         apiKey,
@@ -363,6 +521,7 @@ export class DocxTranslationService {
       };
       extractFn = (d) => d.choices[0].message.content;
     } else if (provider === 'gemini') {
+      const userMessage = `INSTRUCTIONS: ${systemPrompt}\n\nDOCUMENT:\n${documentText}`;
       const geminiModel = model || 'gemini-1.5-pro';
       url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
       body = {
@@ -373,6 +532,7 @@ export class DocxTranslationService {
       extractFn = (d) => d.candidates[0].content.parts[0].text;
     } else {
       // groq — direct browser call, CORS-enabled
+      const userMessage = `INSTRUCTIONS: ${systemPrompt}\n\nDOCUMENT:\n${documentText}`;
       url = 'https://api.groq.com/openai/v1/chat/completions';
       headers['Authorization'] = `Bearer ${apiKey}`;
       body = {
@@ -386,7 +546,8 @@ export class DocxTranslationService {
       extractFn = (d) => d.choices[0].message.content;
     }
 
-    console.log('📤 POST', url);
+    console.log('   📤 Sending POST request to:', url.substring(0, 80) + '...');
+    console.log('   ⏳ Waiting for AI response...');
     let response: Response;
     try {
       response = await fetch(url, {
@@ -398,7 +559,7 @@ export class DocxTranslationService {
       throw new Error(`Network error: ${err.message}`);
     }
 
-    console.log('📥 Status:', response.status);
+    console.log('   📥 HTTP Status:', response.status, response.statusText);
 
     if (!response.ok) {
       let detail = '';
@@ -604,6 +765,15 @@ export class DocxTranslationService {
   }
 
   /**
+   * Store the original file buffer (MXLIFF or DOCX) for later manipulation
+   * @param buffer - ArrayBuffer from the downloaded file
+   */
+  setOriginalBuffer(buffer: ArrayBuffer): void {
+    this.originalBuffer = buffer;
+    console.log('📦 Original buffer stored:', buffer.byteLength, 'bytes');
+  }
+
+  /**
    * Extract segments with their Phrase segment IDs from the original DOCX
    * @returns Array of segments with ID, segment number, and source text
    */
@@ -614,7 +784,12 @@ export class DocxTranslationService {
       throw new Error('Original DOCX buffer not set');
     }
 
-    console.log('🔍 Extracting segments with IDs from original DOCX...');
+    console.log('\n🔍 EXTRACTING SEGMENT IDs from original DOCX...');
+    console.log(
+      '   📦 Buffer size:',
+      (this.originalDocxBuffer.byteLength / 1024).toFixed(2),
+      'KB',
+    );
 
     try {
       // Load ZIP file
@@ -674,7 +849,13 @@ export class DocxTranslationService {
         });
       });
 
-      console.log(`✅ Extracted ${segments.length} unlocked segments`);
+      console.log('✅ Segment extraction complete!');
+      console.log('   📊 Total segments found:', segments.length);
+      if (segments.length > 0) {
+        console.log('   📄 First segment preview:');
+        console.log('      ID:', segments[0].id);
+        console.log('      Text:', segments[0].sourceText.substring(0, 100));
+      }
       return segments;
     } catch (error: any) {
       console.error('❌ Failed to extract segments:', error);
@@ -694,7 +875,13 @@ export class DocxTranslationService {
       throw new Error('Original DOCX buffer not set');
     }
 
-    console.log('💉 Injecting translations into original DOCX...');
+    console.log('\n💉 INJECTING TRANSLATIONS into original DOCX...');
+    console.log('   📊 Translations to inject:', translations.length);
+    if (translations.length > 0) {
+      console.log('   📄 First translation preview:');
+      console.log('      Segment ID:', translations[0].segmentId);
+      console.log('      Text:', translations[0].targetText.substring(0, 100));
+    }
 
     try {
       // Load ZIP file
@@ -793,7 +980,13 @@ export class DocxTranslationService {
         updatedCount++;
       });
 
-      console.log(`✅ Injected ${updatedCount} translations`);
+      console.log('✅ Injection complete!');
+      console.log(
+        '   📊 Segments updated:',
+        updatedCount,
+        'out of',
+        translations.length,
+      );
 
       // Serialize XML back to string
       const serializer = new XMLSerializer();
@@ -809,11 +1002,229 @@ export class DocxTranslationService {
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
 
-      console.log('✅ Modified DOCX ready');
+      console.log('✅ Modified DOCX ready!');
+      console.log(
+        '   📊 Output file size:',
+        (blob.size / 1024).toFixed(2),
+        'KB',
+      );
       return blob;
     } catch (error: any) {
       console.error('❌ Failed to inject translations:', error);
       throw new Error(`Failed to inject translations: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract segments with their IDs from MXLIFF file
+   * @returns Array of segments with ID, segment number, and source text
+   */
+  async extractSegmentsFromMxliff(): Promise<
+    { id: string; segNum: number; sourceText: string }[]
+  > {
+    if (!this.originalBuffer) {
+      throw new Error('Original MXLIFF buffer not set');
+    }
+
+    console.log('\n🔍 EXTRACTING SEGMENTS from MXLIFF...');
+    console.log(
+      '   📦 Buffer size:',
+      (this.originalBuffer.byteLength / 1024).toFixed(2),
+      'KB',
+    );
+
+    try {
+      // Convert ArrayBuffer to string
+      const decoder = new TextDecoder('utf-8');
+      const xmlText = decoder.decode(this.originalBuffer);
+
+      // Parse XML
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+      // Check for parsing errors
+      const parserError = xmlDoc.querySelector('parsererror');
+      if (parserError) {
+        throw new Error('Failed to parse MXLIFF XML');
+      }
+
+      // Find the <body> element to avoid extracting from header preview skeleton
+      const bodyElement = xmlDoc.querySelector('body');
+      if (!bodyElement) {
+        throw new Error('No <body> element found in MXLIFF file.');
+      }
+
+      // Find all trans-unit elements within the body
+      const transUnits = bodyElement.querySelectorAll('trans-unit');
+      const segments: { id: string; segNum: number; sourceText: string }[] = [];
+      let segNum = 0;
+
+      transUnits.forEach((transUnit) => {
+        const segmentId = transUnit.getAttribute('id');
+        if (!segmentId) {
+          return;
+        }
+
+        // Real translation segments have IDs with format like "taskId:segmentNumber"
+        const hasValidId = segmentId.includes(':') && /:\d+$/.test(segmentId);
+
+        if (!hasValidId) {
+          return; // Skip metadata segments
+        }
+
+        // Extract source text
+        const sourceElement = transUnit.querySelector(':scope > source');
+        const sourceText = sourceElement?.textContent?.trim() || '';
+
+        if (!sourceText) {
+          return;
+        }
+
+        // Additional filter: exclude segments with inline formatting tags (UI metadata)
+        const hasInlineFormatting =
+          sourceText.includes('{i>') || sourceText.includes('<i}');
+
+        // Exclude known metadata patterns
+        const isMetadata =
+          sourceText.match(
+            /^(ace-arab|en-af|\d+|converter\d+|Memsource|MT|Click here to enter text\.)$/i,
+          ) ||
+          sourceText.match(/^\{i>.*<i\}$/) ||
+          sourceText.match(/^[A-Za-z0-9_-]+_dc\d+:\d+$/); // Segment IDs as content
+
+        if (!hasInlineFormatting && !isMetadata) {
+          segments.push({
+            id: segmentId,
+            segNum: segNum++,
+            sourceText,
+          });
+        }
+      });
+
+      console.log('✅ Segment extraction complete!');
+      console.log('   📊 Total segments found:', segments.length);
+      if (segments.length > 0) {
+        console.log('   📄 First segment preview:');
+        console.log('      ID:', segments[0].id);
+        console.log('      Text:', segments[0].sourceText.substring(0, 100));
+      }
+      return segments;
+    } catch (error: any) {
+      console.error('❌ Failed to extract MXLIFF segments:', error);
+      throw new Error(`Failed to extract MXLIFF segments: ${error.message}`);
+    }
+  }
+
+  /**
+   * Inject translations into MXLIFF file and return the modified blob
+   * @param translations - Array of translations mapped to segment IDs
+   * @returns Blob containing the modified MXLIFF
+   */
+  async injectTranslationsIntoMxliff(
+    translations: { segmentId: string; targetText: string }[],
+  ): Promise<Blob> {
+    if (!this.originalBuffer) {
+      throw new Error('Original MXLIFF buffer not set');
+    }
+
+    console.log('\n💉 INJECTING TRANSLATIONS into MXLIFF...');
+    console.log('   📊 Translations to inject:', translations.length);
+    if (translations.length > 0) {
+      console.log('   📄 First translation preview:');
+      console.log('      Segment ID:', translations[0].segmentId);
+      console.log('      Text:', translations[0].targetText.substring(0, 100));
+    }
+
+    try {
+      // Convert ArrayBuffer to string
+      const decoder = new TextDecoder('utf-8');
+      const xmlText = decoder.decode(this.originalBuffer);
+
+      // Parse XML
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+      // Check for parsing errors
+      const parserError = xmlDoc.querySelector('parsererror');
+      if (parserError) {
+        throw new Error('Failed to parse MXLIFF XML');
+      }
+
+      // Create translation map for quick lookup
+      const translationMap = new Map<string, string>();
+      translations.forEach((t) =>
+        translationMap.set(t.segmentId, t.targetText),
+      );
+
+      // Find all trans-unit elements and update targets
+      const transUnits = xmlDoc.querySelectorAll('trans-unit');
+      let updatedCount = 0;
+
+      transUnits.forEach((transUnit) => {
+        const segmentId = transUnit.getAttribute('id');
+        if (!segmentId) {
+          return;
+        }
+
+        const translation = translationMap.get(segmentId);
+        if (!translation) {
+          return;
+        }
+
+        // Find or create target element
+        let targetElement = transUnit.querySelector('target');
+        if (!targetElement) {
+          // Create target element if it doesn't exist
+          targetElement = xmlDoc.createElement('target');
+          const sourceElement = transUnit.querySelector('source');
+          if (sourceElement) {
+            // Insert target after source
+            sourceElement.parentNode?.insertBefore(
+              targetElement,
+              sourceElement.nextSibling,
+            );
+          } else {
+            // Just append to trans-unit
+            transUnit.appendChild(targetElement);
+          }
+        }
+
+        // Update target text
+        targetElement.textContent = translation;
+
+        // Mark as translated (optional - update state attribute if present)
+        transUnit.setAttribute('approved', 'yes');
+
+        updatedCount++;
+      });
+
+      console.log('✅ Injection complete!');
+      console.log(
+        '   📊 Segments updated:',
+        updatedCount,
+        'out of',
+        translations.length,
+      );
+
+      // Serialize XML back to string
+      const serializer = new XMLSerializer();
+      const updatedXml = serializer.serializeToString(xmlDoc);
+
+      // Create blob
+      const blob = new Blob([updatedXml], { type: 'application/x-xliff+xml' });
+
+      console.log('✅ Modified MXLIFF ready!');
+      console.log(
+        '   📊 Output file size:',
+        (blob.size / 1024).toFixed(2),
+        'KB',
+      );
+      return blob;
+    } catch (error: any) {
+      console.error('❌ Failed to inject translations into MXLIFF:', error);
+      throw new Error(
+        `Failed to inject translations into MXLIFF: ${error.message}`,
+      );
     }
   }
 }
