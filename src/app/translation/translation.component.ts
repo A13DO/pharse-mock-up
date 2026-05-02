@@ -318,6 +318,7 @@ Rules:
   errorMessage = signal<string | null>(null);
   translatedBlob = signal<Blob | null>(null);
   translatedFilename = signal<string>('');
+  originalFileType = signal<'docx' | 'mxliff' | null>(null);
   isDragging = signal<boolean>(false);
   filePreview = signal<string>('');
   showPreview = signal<boolean>(false);
@@ -816,6 +817,7 @@ Rules:
     this.errorMessage.set(null);
     this.translatedBlob.set(null);
     this.translatedFilename.set('');
+    this.originalFileType.set(null);
     this.filePreview.set('');
     this.showPreview.set(false);
     this.aiResponse.set('');
@@ -862,6 +864,9 @@ Rules:
         apiKey,
         this.selectedModel(),
       );
+
+      // Store the original file type for later use in download
+      this.originalFileType.set(result.fileType);
 
       this.progressStep.set('building');
 
@@ -923,30 +928,173 @@ Rules:
 
   /**
    * Download the translated document
-   * If a TermBase table exists, rebuild DOCX from the edited table data
+   * For DOCX files with TermBase table: inject "Final Translation" column back into original DOCX structure
+   * This preserves Phrase bilingual format with SDTs and segment IDs
    */
   async downloadTranslation(): Promise<void> {
     const table = this.termBaseTable();
-    const filename = this.translatedFilename();
+    let filename = this.translatedFilename();
+    const fileType = this.originalFileType();
 
     if (!filename) return;
 
     try {
       let blob: Blob;
 
-      // If we have a table, rebuild the DOCX from the (possibly edited) table data
-      if (table && table.headers.length > 0 && table.rows.length > 0) {
-        console.log('📊 Rebuilding DOCX from edited table data...');
-        blob = await this.docxService.buildDocxFromTable(
-          table.headers,
-          table.rows,
-          filename,
+      // If we have a table with translations, inject them into the original file structure
+      if (
+        table &&
+        table.headers.length > 0 &&
+        table.rows.length > 0 &&
+        fileType
+      ) {
+        console.log(
+          '📊 Injecting translations into original',
+          fileType.toUpperCase(),
+          'structure...',
         );
+
+        // Find the "Final Translation" column index (should be column 3 or named "Final Translation")
+        const finalTranslationColIndex =
+          table.headers.findIndex(
+            (h) =>
+              h.toLowerCase().includes('final translation') ||
+              h.toLowerCase().includes('final trans'),
+          ) || 3; // Default to column index 3 if not found by name
+
+        console.log(
+          '   📍 Final Translation column index:',
+          finalTranslationColIndex,
+        );
+        console.log('   📊 Total rows to inject:', table.rows.length);
+
+        if (fileType === 'docx') {
+          // Extract segment IDs and source text from original DOCX
+          const segments = await this.docxService.extractSegmentsWithIds();
+          console.log(
+            '   📊 Segments found in original DOCX:',
+            segments.length,
+          );
+          console.log('   📊 Table rows available:', table.rows.length);
+
+          // Validate that we have the same number of segments and table rows
+          if (segments.length !== table.rows.length) {
+            console.warn(`⚠️ WARNING: Segment count mismatch!`);
+            console.warn(`   Segments in DOCX: ${segments.length}`);
+            console.warn(`   Rows in table: ${table.rows.length}`);
+            console.warn(`   This may cause incorrect mappings!`);
+          }
+
+          // Log first few segments and table rows for debugging
+          console.log('   📄 First 3 segments from DOCX:');
+          segments.slice(0, 3).forEach((seg, i) => {
+            console.log(
+              `      ${i + 1}. [${seg.id}] ${seg.sourceText.substring(0, 60)}...`,
+            );
+          });
+
+          console.log('   📄 First 3 table rows:');
+          table.rows.slice(0, 3).forEach((row, i) => {
+            console.log(
+              `      ${i + 1}. Source: ${row[1]?.substring(0, 60)}... → Final: ${row[finalTranslationColIndex]?.substring(0, 60)}...`,
+            );
+          });
+
+          // Map translations to segment IDs
+          // The table row index should match the segment number
+          const translations = segments
+            .map((segment, index) => {
+              // Get the final translation from the table (use row index if available)
+              const finalTranslation =
+                table.rows[index]?.[finalTranslationColIndex] || '';
+
+              // Validate that source texts match (for debugging)
+              const tableSourceText = table.rows[index]?.[1] || ''; // Column 1 is "Source"
+              if (tableSourceText !== segment.sourceText) {
+                console.warn(`⚠️ Source text mismatch at row ${index + 1}:`);
+                console.warn(
+                  `   Segment: "${segment.sourceText.substring(0, 50)}..."`,
+                );
+                console.warn(
+                  `   Table:   "${tableSourceText.substring(0, 50)}..."`,
+                );
+              }
+
+              return {
+                segmentId: segment.id,
+                targetText: finalTranslation,
+              };
+            })
+            .filter((t) => t.targetText.trim() !== ''); // Only include non-empty translations
+
+          console.log('   ✅ Translations prepared:', translations.length);
+          if (translations.length > 0) {
+            console.log('   📄 First 3 translations to inject:');
+            translations.slice(0, 3).forEach((t, i) => {
+              console.log(
+                `      ${i + 1}. [${t.segmentId}] → "${t.targetText.substring(0, 60)}..."`,
+              );
+            });
+          }
+
+          // Inject translations into the original DOCX structure
+          blob =
+            await this.docxService.injectTranslationsAndBuild(translations);
+
+          // Update filename to indicate it's ready for Phrase upload
+          filename = filename.replace('_translated_', '_ready_for_phrase_');
+
+          console.log(
+            '   ✅ DOCX injection complete! File preserves Phrase bilingual structure.',
+          );
+        } else if (fileType === 'mxliff') {
+          // Extract segment IDs from MXLIFF
+          const segments = await this.docxService.extractSegmentsFromMxliff();
+          console.log(
+            '   📊 Segments found in original MXLIFF:',
+            segments.length,
+          );
+
+          // Map translations to segment IDs
+          const translations = segments
+            .map((segment, index) => {
+              const finalTranslation =
+                table.rows[index]?.[finalTranslationColIndex] || '';
+
+              return {
+                segmentId: segment.id,
+                targetText: finalTranslation,
+              };
+            })
+            .filter((t) => t.targetText.trim() !== '');
+
+          console.log('   ✅ Translations prepared:', translations.length);
+
+          // Inject translations into MXLIFF
+          blob =
+            await this.docxService.injectTranslationsIntoMxliff(translations);
+
+          // Change extension to .mxliff for proper file format
+          filename = filename
+            .replace('.docx', '.mxliff')
+            .replace('_translated_', '_ready_for_phrase_');
+
+          console.log('   ✅ MXLIFF injection complete!');
+        } else {
+          // Fallback: build simple table DOCX
+          console.warn('⚠️ Unknown file type, building simple table DOCX');
+          blob = await this.docxService.buildDocxFromTable(
+            table.headers,
+            table.rows,
+            filename,
+          );
+        }
       } else {
-        // Use the original blob
+        // Use the original blob (no table or file type info)
         const originalBlob = this.translatedBlob();
         if (!originalBlob) return;
         blob = originalBlob;
+        console.log('📄 Using original blob (no table injection needed)');
       }
 
       // Trigger download
@@ -976,6 +1124,7 @@ Rules:
     this.errorMessage.set(null);
     this.translatedBlob.set(null);
     this.translatedFilename.set('');
+    this.originalFileType.set(null);
     this.filePreview.set('');
     this.showPreview.set(false);
     this.aiResponse.set('');

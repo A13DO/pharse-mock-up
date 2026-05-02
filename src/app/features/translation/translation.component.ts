@@ -848,7 +848,7 @@ Rules:
       return translations;
     }
 
-    tableData.rows.forEach((row) => {
+    tableData.rows.forEach((row, rowIndex) => {
       const cellNumStr = row[cellNumIndex];
       const finalTranslation = row[finalTranslationIndex];
 
@@ -856,17 +856,33 @@ Rules:
         return;
       }
 
-      // Parse cell number
+      // Parse cell number (table uses 1-based numbering)
       const cellNum = parseInt(cellNumStr, 10);
       if (isNaN(cellNum)) {
+        console.warn(`⚠️ Invalid cell number: "${cellNumStr}"`);
         return;
       }
 
-      // Find corresponding segment by segNum
-      const segment = segmentMap.find((s) => s.segNum === cellNum);
+      // Find corresponding segment by segNum (0-based, so subtract 1 from cell number)
+      const segment = segmentMap.find((s) => s.segNum === cellNum - 1);
       if (!segment) {
-        console.warn(`⚠️ No segment found for cell #${cellNum}`);
+        console.warn(
+          `⚠️ No segment found for cell #${cellNum} (looking for segNum ${cellNum - 1})`,
+        );
+        console.warn(
+          `   Available segments: ${segmentMap.length}, segNum range: 0-${segmentMap.length - 1}`,
+        );
         return;
+      }
+
+      // Log first few mappings for debugging
+      if (rowIndex < 3) {
+        console.log(
+          `   ✓ Cell #${cellNum} → Segment [${segment.id.substring(0, 20)}...] (segNum ${segment.segNum})`,
+        );
+        console.log(
+          `      Translation: "${finalTranslation.substring(0, 60)}..."`,
+        );
       }
 
       translations.push({
@@ -875,7 +891,14 @@ Rules:
       });
     });
 
-    console.log(`✅ Built ${translations.length} translations from table`);
+    console.log(
+      `\n✅ Built ${translations.length} translations from ${tableData.rows.length} table rows`,
+    );
+    if (translations.length !== tableData.rows.length) {
+      console.warn(
+        `⚠️ Warning: Only mapped ${translations.length} out of ${tableData.rows.length} rows`,
+      );
+    }
     return translations;
   }
 
@@ -1196,8 +1219,24 @@ Rules:
       if (table && table.headers.length > 0 && table.rows.length > 0) {
         console.log('   ✏️ Using edited table data...');
         console.log('   📊 Table rows:', table.rows.length);
+        console.log('   📊 Segment map entries:', this.segmentIdMap().length);
+
         // Build translations array from edited table
         const translations = await this.buildTranslationsFromTable(table);
+
+        if (translations.length === 0) {
+          throw new Error(
+            'No translations could be mapped from the table. Check that Cell # column matches segments.',
+          );
+        }
+
+        console.log(`   ✅ Mapped ${translations.length} translations`);
+        console.log('   📄 First 3 translations:');
+        translations.slice(0, 3).forEach((t, i) => {
+          console.log(
+            `      ${i + 1}. [${t.segmentId}] → "${t.targetText.substring(0, 60)}..."`,
+          );
+        });
 
         // Check file type and use appropriate injection method
         const fileName = this.originalFile?.name.toLowerCase() || '';
@@ -1206,10 +1245,16 @@ Rules:
           fileName.endsWith('.mxliff') ||
           fileName.endsWith('.xliff');
 
+        console.log(`   🔧 File type: ${isMxliff ? 'MXLIFF' : 'DOCX'}`);
+
         // Inject into original file structure
         blob = isMxliff
           ? await this.docxService.injectTranslationsIntoMxliff(translations)
           : await this.docxService.injectTranslationsAndBuild(translations);
+
+        console.log(
+          `   ✅ Injection complete! Blob size: ${(blob.size / 1024).toFixed(2)} KB`,
+        );
       } else {
         const originalBlob = this.translatedBlob();
         if (!originalBlob) {
@@ -1231,7 +1276,12 @@ Rules:
         ? 'application/x-xliff+xml'
         : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-      const file = new File([blob], filename, {
+      // Use original filename for upload (preserve .mxliff extension)
+      const uploadFilename = this.originalFile?.name || filename;
+      console.log(`   📎 Upload filename: ${uploadFilename}`);
+      console.log(`   📎 MIME type: ${mimeType}`);
+
+      const file = new File([blob], uploadFilename, {
         type: mimeType,
       });
 

@@ -30,13 +30,20 @@ const SYSTEM_PROMPT =
 export class DocxTranslationService {
   private originalDocxBuffer: ArrayBuffer | null = null;
   private originalBuffer: ArrayBuffer | null = null;
+  private originalFileType: 'docx' | 'mxliff' | null = null;
+
   async translateDocument(
     file: File,
     customPrompt: string,
     provider: Provider,
     apiKey: string,
     model = '',
-  ): Promise<{ blob: Blob; filename: string; responseText: string }> {
+  ): Promise<{
+    blob: Blob;
+    filename: string;
+    responseText: string;
+    fileType: 'docx' | 'mxliff';
+  }> {
     console.log('\n🚀 ============ STARTING TRANSLATION WORKFLOW ============');
     console.log('📂 File:', file.name);
     console.log('🤖 Provider:', provider.toUpperCase());
@@ -101,7 +108,12 @@ export class DocxTranslationService {
     console.log('📦 Output file:', filename);
     console.log('========================================================\n');
 
-    return { blob, filename, responseText: translatedText };
+    return {
+      blob,
+      filename,
+      responseText: translatedText,
+      fileType: this.originalFileType || 'docx',
+    };
   }
 
   /**
@@ -113,6 +125,7 @@ export class DocxTranslationService {
     const fileName = file.name.toLowerCase();
 
     if (fileName.endsWith('.docx')) {
+      this.originalFileType = 'docx';
       return this.extractTextFromDocx(file);
     } else if (
       fileName.endsWith('.mxlf') ||
@@ -120,6 +133,7 @@ export class DocxTranslationService {
       fileName.endsWith('.xliff') ||
       fileName.endsWith('.xml')
     ) {
+      this.originalFileType = 'mxliff';
       return this.extractTextFromMxliff(file);
     } else {
       throw new Error(
@@ -143,6 +157,10 @@ export class DocxTranslationService {
     });
 
     console.log('📄 ArrayBuffer size:', arrayBuffer.byteLength, 'bytes');
+
+    // Store the original buffer for later use
+    this.originalDocxBuffer = arrayBuffer;
+    this.originalBuffer = arrayBuffer;
 
     if (arrayBuffer.byteLength === 0) {
       throw new Error(
@@ -308,13 +326,21 @@ export class DocxTranslationService {
    * MXLIFF is an XML format used by translation tools
    */
   private async extractTextFromMxliff(file: File): Promise<string> {
-    const text = await new Promise<string>((resolve, reject) => {
+    // Read as ArrayBuffer first to store the original buffer
+    const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
       reader.onerror = () =>
         reject(new Error(`FileReader failed: ${reader.error?.message}`));
-      reader.readAsText(file, 'utf-8');
+      reader.readAsArrayBuffer(file);
     });
+
+    // Store the original buffer for later use
+    this.originalBuffer = arrayBuffer;
+
+    // Convert to text for parsing
+    const decoder = new TextDecoder('utf-8');
+    const text = decoder.decode(arrayBuffer);
 
     console.log('📄 MXLIFF file size:', text.length, 'chars');
 
@@ -775,6 +801,7 @@ export class DocxTranslationService {
 
   /**
    * Extract segments with their Phrase segment IDs from the original DOCX
+   * This extracts from LOCKED source SDTs to match the order of the TermBase table
    * @returns Array of segments with ID, segment number, and source text
    */
   async extractSegmentsWithIds(): Promise<
@@ -816,12 +843,12 @@ export class DocxTranslationService {
       let segNum = 0;
 
       sdtElements.forEach((sdt) => {
-        // Check if this SDT is locked (source cell or header)
+        // Check if this SDT is LOCKED (source cell - this is what we want!)
         const lockElement = sdt.querySelector(
           'sdtPr lock[w\\:val="sdtContentLocked"]',
         );
-        if (lockElement) {
-          // Skip locked SDTs (source cells and headers)
+        if (!lockElement) {
+          // Skip unlocked SDTs (target cells and other elements)
           return;
         }
 
@@ -842,11 +869,16 @@ export class DocxTranslationService {
           sourceText += textNode.textContent || '';
         });
 
-        segments.push({
-          id: segmentId,
-          segNum: segNum++,
-          sourceText: sourceText.trim(),
-        });
+        const trimmed = sourceText.trim();
+
+        // Filter out headers and metadata using the same logic as extraction
+        if (trimmed && this.isTranslatableContent(trimmed)) {
+          segments.push({
+            id: segmentId,
+            segNum: segNum++,
+            sourceText: trimmed,
+          });
+        }
       });
 
       console.log('✅ Segment extraction complete!');
@@ -912,7 +944,7 @@ export class DocxTranslationService {
           'sdtPr lock[w\\:val="sdtContentLocked"]',
         );
         if (lockElement) {
-          return; // Skip locked SDTs
+          return; // Skip locked SDTs (source cells must remain untouched)
         }
 
         // Get segment ID
@@ -932,12 +964,14 @@ export class DocxTranslationService {
         // Find the sdtContent
         const sdtContent = sdt.querySelector('sdtContent');
         if (!sdtContent) {
+          console.warn('⚠️ No sdtContent found for segment:', segmentId);
           return;
         }
 
         // Find the paragraph inside sdtContent
         const paragraph = sdtContent.querySelector('p');
         if (!paragraph) {
+          console.warn('⚠️ No paragraph found for segment:', segmentId);
           return;
         }
 
@@ -971,13 +1005,29 @@ export class DocxTranslationService {
           'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
           'w:t',
         );
-        textElement.setAttribute('xml:space', 'preserve');
+
+        // Add xml:space attribute properly
+        textElement.setAttributeNS(
+          'http://www.w3.org/XML/1998/namespace',
+          'xml:space',
+          'preserve',
+        );
         textElement.textContent = translation;
 
         newRun.appendChild(textElement);
         paragraph.appendChild(newRun);
 
         updatedCount++;
+
+        // Debug log for first few updates
+        if (updatedCount <= 3) {
+          console.log(`   ✓ Updated segment ${updatedCount}:`, {
+            id: segmentId,
+            text:
+              translation.substring(0, 50) +
+              (translation.length > 50 ? '...' : ''),
+          });
+        }
       });
 
       console.log('✅ Injection complete!');
