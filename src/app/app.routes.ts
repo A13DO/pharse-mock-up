@@ -1,9 +1,20 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth.guard';
+import { loginGuard } from './core/guards/login.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/projects', pathMatch: 'full' },
+  { path: '', redirectTo: '/login', pathMatch: 'full' },
+  {
+    path: 'login',
+    canActivate: [loginGuard],
+    loadComponent: () =>
+      import('./features/auth/login/login.component').then(
+        (m) => m.LoginComponent,
+      ),
+  },
   {
     path: 'projects',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/projects/projects-list/projects-list.component').then(
         (m) => m.ProjectsListComponent,
@@ -11,6 +22,7 @@ export const routes: Routes = [
   },
   {
     path: 'projects/create',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/projects/project-create/project-create.component').then(
         (m) => m.ProjectCreateComponent,
@@ -18,6 +30,7 @@ export const routes: Routes = [
   },
   {
     path: 'projects/:uid',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/projects/project-detail/project-detail.component').then(
         (m) => m.ProjectDetailComponent,
@@ -25,6 +38,7 @@ export const routes: Routes = [
   },
   {
     path: 'projects/:uid/jobs/create',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/projects/job-create/job-create.component').then(
         (m) => m.JobCreateComponent,
@@ -32,6 +46,7 @@ export const routes: Routes = [
   },
   {
     path: 'translate/:projectUid/:jobUid',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/translation/translation.component').then(
         (m) => m.TranslationComponent,
@@ -39,6 +54,7 @@ export const routes: Routes = [
   },
   {
     path: 'ai-translate',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./translation/translation.component').then(
         (m) => m.TranslationComponent,
@@ -46,10 +62,11 @@ export const routes: Routes = [
   },
   {
     path: 'settings',
+    canActivate: [authGuard],
     loadComponent: () =>
       import('./features/settings/settings.component').then(
         (m) => m.SettingsComponent,
       ),
   },
-  { path: '**', redirectTo: '/projects' },
+  { path: '**', redirectTo: '/login' },
 ];

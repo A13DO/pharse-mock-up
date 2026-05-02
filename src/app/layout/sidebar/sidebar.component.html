@@ -52,6 +52,29 @@
                 </div>
             </div>
         </div>
+
+        <!-- User Info and Logout at Bottom -->
+        <div hlmSidebarFooter class="border-t border-t-[rgb(226,226,226)] p-4">
+            @if (currentUser) {
+            <div class="mb-3 px-2">
+                <div class="flex items-center gap-3 mb-1">
+                    <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                        <ng-icon hlm name="lucideUser" size="sm" class="text-indigo-600" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-slate-900 truncate">
+                            {{ currentUser.firstName }} {{ currentUser.lastName }}
+                        </p>
+                        <p class="text-xs text-slate-500 truncate">{{ currentUser.email }}</p>
+                    </div>
+                </div>
+            </div>
+            }
+            <button hlmBtn variant="outline" class="w-full justify-start" (click)="logout()">
+                <ng-icon hlm name="lucideLogOut" />
+                <span>Log Out</span>
+            </button>
+        </div>
     </hlm-sidebar>
     <ng-content />
 </div>

@@ -1,7 +1,9 @@
 <div class="flex min-h-screen bg-gray-50">
+  @if (isLoggedIn) {
   <app-sidebar></app-sidebar>
+  }
   <!-- lg:ml-64 -->
-  <main class="flex-1  min-h-screen">
+  <main class="flex-1 min-h-screen">
     <router-outlet></router-outlet>
   </main>
 </div>

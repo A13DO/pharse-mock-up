@@ -27,7 +27,7 @@ export class ProjectsListComponent implements OnInit {
   error: string | null = null;
 
   columns: TableColumn[] = [
-    { key: 'uid', label: 'UID' },
+    // { key: 'uid', label: 'UID' },
     { key: 'name', label: 'Name' },
     { key: 'sourceLang', label: 'Source Language' },
     { key: 'status', label: 'Status' },

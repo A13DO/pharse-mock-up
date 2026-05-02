@@ -1,0 +1,35 @@
+// Login component styles
+:host {
+  display: block;
+}
+
+// Custom animations
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bg-gradient-to-br {
+  animation: fadeIn 0.5s ease-out;
+}
+
+// Input focus states
+input[hlmInput] {
+  transition: all 0.2s ease;
+
+  &:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+}
+
+// Button loading state
+button[hlmBtn][disabled] {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
