@@ -247,7 +247,7 @@ export class TranslationService {
       model: model,
       messages: messages,
       temperature: 0.3,
-      max_tokens: 4000,
+      // max_tokens: 4000,
     };
 
     console.log('📤 Sending request to OpenAI API...');

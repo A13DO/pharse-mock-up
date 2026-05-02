@@ -538,7 +538,7 @@ export class DocxTranslationService {
         apiKey,
         body: {
           model: model || 'gpt-4o',
-          max_tokens: 4096,
+          // max_tokens: 4096,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: userMessage },
@@ -563,7 +563,7 @@ export class DocxTranslationService {
       headers['Authorization'] = `Bearer ${apiKey}`;
       body = {
         model: model || 'llama-3.3-70b-versatile',
-        max_tokens: 4096,
+        // max_tokens: 4096,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userMessage },
