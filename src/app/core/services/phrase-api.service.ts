@@ -257,10 +257,13 @@ export class PhraseApiService {
 
   getProjectTemplates(): Observable<ProjectTemplatesResponse> {
     return this.http
-      .get<ProjectTemplatesResponse>(`${this.baseUrl}/v1/projectTemplates`, {
-        headers: this.getHeaders(),
-        withCredentials: true,
-      })
+      .get<ProjectTemplatesResponse>(
+        'https://phrase.runasp.net/api/Phrase/project-templates',
+        {
+          headers: this.getHeaders(),
+          withCredentials: true,
+        },
+      )
       .pipe(catchError(this.handleError));
   }
 

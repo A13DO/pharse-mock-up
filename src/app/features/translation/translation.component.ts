@@ -1095,12 +1095,13 @@ Ensure it is clean and production-ready`;
 
   async downloadTranslation(): Promise<void> {
     const table = this.termBaseTable();
-    const filename = this.translatedFilename();
+    let filename = this.translatedFilename();
 
     if (!filename) return;
 
     console.log('\n💾 PREPARING DOWNLOAD...');
     console.log('   📂 Filename:', filename);
+    console.log('   🔧 Format: MXLIFF');
 
     try {
       let blob: Blob;
@@ -1112,21 +1113,18 @@ Ensure it is clean and production-ready`;
         const translations = await this.buildTranslationsFromTable(table);
         console.log('   📊 Translations built:', translations.length);
 
-        // Check file type and use appropriate injection method
-        const fileName = this.originalFile?.name.toLowerCase() || '';
-        const isMxliff =
-          fileName.endsWith('.mxlf') ||
-          fileName.endsWith('.mxliff') ||
-          fileName.endsWith('.xliff');
-
-        // Inject into original file structure
-        blob = isMxliff
-          ? await this.docxService.injectTranslationsIntoMxliff(translations)
-          : await this.docxService.injectTranslationsAndBuild(translations);
+        // Always inject as MXLIFF for download
+        blob =
+          await this.docxService.injectTranslationsIntoMxliff(translations);
       } else {
         const originalBlob = this.translatedBlob();
         if (!originalBlob) return;
         blob = originalBlob;
+      }
+
+      // Ensure filename ends with .mxliff
+      if (!filename.toLowerCase().endsWith('.mxliff')) {
+        filename = filename.replace(/\.(docx|mxlf|xliff)$/i, '') + '.mxliff';
       }
 
       const url = URL.createObjectURL(blob);
