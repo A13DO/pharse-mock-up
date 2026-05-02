@@ -23,18 +23,13 @@
                     </label>
                     <p-select [options]="templates" formControlName="template" optionLabel="templateName"
                         [filter]="true" filterBy="templateName" placeholder="Select a template (optional)"
-                        [showClear]="true" [loading]="loadingTemplates" styleClass="w-full"
-                        (onChange)="onTemplateSelect($event)">
-                        <ng-template pTemplate="selectedItem" let-template>
-                            <div class="flex items-center gap-2" *ngIf="template">
-                                <span class="font-medium">{{ template.templateName }}</span>
-                            </div>
-                        </ng-template>
+                        [showClear]="true" [loading]="loadingTemplates" styleClass="w-full" [virtualScroll]="true"
+                        [virtualScrollItemSize]="38" (onChange)="onTemplateSelect($event)">
                         <ng-template pTemplate="item" let-template>
-                            <div class="flex flex-col">
-                                <span class="font-medium">{{ template.templateName }}</span>
-                                <span class="text-xs text-gray-500">{{ template.sourceLang }} → {{
-                                    template.targetLangs.join(', ') }}</span>
+                            <div>
+                                <div class="font-medium">{{ template.templateName }}</div>
+                                <div class="text-xs text-gray-500">{{ template.sourceLang }} → {{
+                                    template.targetLangs.join(', ') }}</div>
                             </div>
                         </ng-template>
                     </p-select>
@@ -50,8 +45,18 @@
             <div class="mb-6 pb-6 border-b border-gray-200">
                 <h3 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h3>
 
-                <app-form-field label="Project Name" [control]="getControl('name')" type="text"
-                    placeholder="Enter project name" [required]="true"></app-form-field>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Project Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" [formControl]="getControl('name')" placeholder="Enter project name"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        [class.border-red-500]="getControl('name').invalid && getControl('name').touched" />
+                    <div *ngIf="getControl('name').invalid && getControl('name').touched"
+                        class="text-red-500 text-xs mt-1">
+                        Project Name is required
+                    </div>
+                </div>
 
                 <!-- Source Language Dropdown -->
                 <div class="mb-4">
@@ -60,19 +65,11 @@
                     </label>
                     <p-select [options]="languages" formControlName="sourceLang" optionLabel="name" [filter]="true"
                         filterBy="name,code" placeholder="Select source language" [showClear]="true"
-                        [loading]="loadingLanguages" styleClass="w-full"
+                        [loading]="loadingLanguages" styleClass="w-full" [virtualScroll]="true"
+                        [virtualScrollItemSize]="38"
                         [class.ng-invalid]="getControl('sourceLang').invalid && getControl('sourceLang').touched">
-                        <ng-template pTemplate="selectedItem" let-language>
-                            <div class="flex items-center gap-2" *ngIf="language">
-                                <span class="font-medium">{{ language.code }}</span>
-                                <span class="text-gray-600">- {{ language.name }}</span>
-                            </div>
-                        </ng-template>
                         <ng-template pTemplate="item" let-language>
-                            <div class="flex items-center gap-2">
-                                <span class="font-medium">{{ language.code }}</span>
-                                <span class="text-gray-600">- {{ language.name }}</span>
-                            </div>
+                            <span>{{ language.code }} - {{ language.name }}</span>
                         </ng-template>
                     </p-select>
                     <small class="text-red-600 text-xs mt-1 block"
@@ -91,13 +88,11 @@
                     </label>
                     <p-multiSelect [options]="languages" formControlName="targetLangs" optionLabel="name"
                         [filter]="true" filterBy="name,code" placeholder="Select target languages" [showClear]="true"
-                        [loading]="loadingLanguages" display="chip" styleClass="w-full"
+                        [loading]="loadingLanguages" display="chip" styleClass="w-full" [virtualScroll]="true"
+                        [virtualScrollItemSize]="38"
                         [class.ng-invalid]="getControl('targetLangs').invalid && getControl('targetLangs').touched">
                         <ng-template pTemplate="item" let-language>
-                            <div class="flex items-center gap-2">
-                                <span class="font-medium">{{ language.code }}</span>
-                                <span class="text-gray-600">- {{ language.name }}</span>
-                            </div>
+                            <span>{{ language.code }} - {{ language.name }}</span>
                         </ng-template>
                     </p-multiSelect>
                     <small class="text-red-600 text-xs mt-1 block"
@@ -110,26 +105,48 @@
             <div class="mb-6">
                 <h3 class="text-base font-semibold text-gray-900 mb-4">Additional Details</h3>
 
-                <app-form-field label="Purchase Order" [control]="getControl('purchaseOrder')" type="text"
-                    placeholder="Enter purchase order number (optional)"></app-form-field>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Purchase Order
+                    </label>
+                    <input type="text" [formControl]="getControl('purchaseOrder')"
+                        placeholder="Enter purchase order number (optional)"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm" />
+                </div>
 
-                <app-form-field label="Due Date" [control]="getControl('dateDue')"
-                    type="datetime-local"></app-form-field>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Due Date
+                    </label>
+                    <input type="datetime-local" [formControl]="getControl('dateDue')"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm" />
+                </div>
 
-                <app-form-field label="Note" [control]="getControl('note')" type="textarea"
-                    placeholder="Add any notes or comments about this project"></app-form-field>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1.5">
+                        Note
+                    </label>
+                    <textarea [formControl]="getControl('note')"
+                        placeholder="Add any notes or comments about this project" rows="4"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm resize-vertical"></textarea>
+                </div>
 
-                <app-form-field label="File Handover" [control]="getControl('fileHandover')" type="checkbox"
-                    placeholder="Enable file handover for this project"></app-form-field>
+                <div class="mb-4 flex items-center gap-2">
+                    <input type="checkbox" [formControl]="getControl('fileHandover')" id="fileHandover"
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    <label [for]="'fileHandover'" class="text-sm text-gray-700 cursor-pointer">
+                        Enable file handover for this project
+                    </label>
+                </div>
             </div>
 
             <div class="flex gap-2 justify-end pt-4 border-t border-gray-200">
-                <button type="button" hlmBtn variant="outline"
-                    (click)="cancel()" [disabled]="submitting">
+                <button type="button" (click)="cancel()" [disabled]="submitting"
+                    class="px-4 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                     Cancel
                 </button>
-                <button type="submit" hlmBtn
-                    [disabled]="submitting">
+                <button type="submit" [disabled]="submitting"
+                    class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                     {{ submitting ? 'Creating...' : 'Create Project' }}
                 </button>
             </div>

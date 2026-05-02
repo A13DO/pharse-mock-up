@@ -47,7 +47,7 @@ export class SidebarComponent {
 
   menuItems = [
     { path: '/projects', label: 'Projects', icon: 'lucideFolder' },
-    { path: '/ai-translate', label: 'AI Translation', icon: 'lucideBolt' },
+    // { path: '/ai-translate', label: 'AI Translation', icon: 'lucideBolt' },
     { path: '/allowed-users', label: 'Allowed Users', icon: 'lucideUsers' },
     { path: '/settings', label: 'Settings', icon: 'lucideSettings' },
   ];

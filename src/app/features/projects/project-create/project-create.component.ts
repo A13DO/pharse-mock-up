@@ -14,7 +14,6 @@ import {
   Language,
   ProjectTemplate,
 } from '../../../core/services/phrase-api.service';
-import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { HeaderComponent } from '../../../layout/header/header.component';
 import { Select } from 'primeng/select';
 import { MultiSelect } from 'primeng/multiselect';
@@ -25,7 +24,6 @@ import { MultiSelect } from 'primeng/multiselect';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    FormFieldComponent,
     HeaderComponent,
     Select,
     MultiSelect,
