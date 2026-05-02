@@ -50,7 +50,7 @@ export class AllowedUsersService {
       .put<AllowedUser>(
         `${this.baseUrl}/AllowedUsers/${encodeURIComponent(email)}`,
         {
-          email: newEmail,
+          newEmail: newEmail,
         },
       )
       .pipe(catchError(this.handleError));
