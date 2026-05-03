@@ -16,6 +16,19 @@ import {
 
 export type Provider = 'anthropic' | 'openai' | 'gemini' | 'groq';
 
+/** Segment kinds determined at extraction time */
+type SegmentKind =
+  | 'translate' // send to AI
+  | 'copy-source' // keep source as target (e.g. pure numbers)
+  | 'skip'; // locked or empty — leave target untouched
+
+interface Segment {
+  id: string;
+  segNum: number;
+  sourceText: string;
+  kind: SegmentKind;
+}
+
 const PROXY_BASE = 'http://localhost:3001';
 
 const SYSTEM_PROMPT =
@@ -224,8 +237,8 @@ export class DocxTranslationService {
 
         const trimmed = sourceText.trim();
 
-        // Filter out headers and metadata using the same logic
-        if (trimmed && this.isTranslatableContent(trimmed)) {
+        // Accept all non-empty locked SDT content (classification happens later)
+        if (trimmed) {
           sourceTexts.push(trimmed);
         }
       });
@@ -251,74 +264,49 @@ export class DocxTranslationService {
   }
 
   /**
-   * Check if text content is translatable (filters out UI elements, metadata, etc.)
+   * Classify a segment based on its content and lock status
+   *
+   * Classification rules:
+   * - locked=true → 'skip' (already translated, don't touch)
+   * - empty → 'skip' (nothing to translate)
+   * - pure numbers → 'copy-source' (123, 1234, etc.)
+   * - EVERYTHING ELSE → 'translate' (single characters like "p", words, sentences, mixed content, formatted numbers, etc.)
    */
-  private isTranslatableContent(text: string): boolean {
-    if (!text || text.trim().length < 3) {
-      return false;
+  private classifySegment(sourceText: string, isLocked: boolean): SegmentKind {
+    // Rule 1: Locked segments (already translated) → skip
+    if (isLocked) {
+      console.log(`   🔒 SKIP (locked): "${sourceText.substring(0, 50)}"`);
+      return 'skip';
     }
 
-    const trimmed = text.trim();
+    const trimmed = sourceText.trim();
 
-    // Exclude pure numbers
+    // Rule 2: Empty segments → skip
+    if (!trimmed) {
+      console.log(`   ⭕ SKIP (empty)`);
+      return 'skip';
+    }
+
+    // Rule 3: Pure integer numbers only → copy-source
+    // Examples that match: "123", "0", "999999"
+    // Examples that DON'T match and WILL be translated: "1.5", "1,234", "50%", "Item 123", "{1}", "p", "A"
     if (/^\d+$/.test(trimmed)) {
-      return false;
+      console.log(`   🔢 COPY-SOURCE (pure number): "${trimmed}"`);
+      return 'copy-source';
     }
 
-    // Exclude UI/metadata keywords
-    const uiKeywords = [
-      'ID',
-      'ICU',
-      'Source',
-      'Target',
-      'Comment',
-      'Memsource',
-      'MT',
-      'converter',
-      'ace-arab',
-      'ace',
-      'read only',
-      'locked',
-      'upload',
-      'grey',
-      'background',
-      'font',
-      'segment',
-      'Click here to enter',
-    ];
-
-    if (
-      uiKeywords.some((keyword) =>
-        trimmed.toLowerCase().includes(keyword.toLowerCase()),
-      )
-    ) {
-      return false;
-    }
-
-    // Exclude segment ID patterns (e.g., "gnzwL54VVuaLadvq_dc9:0")
-    if (/^[a-zA-Z0-9_-]+_dc\d+:\d+$/.test(trimmed)) {
-      return false;
-    }
-
-    // Exclude language codes (e.g., "en", "en-US")
-    if (/^[a-z]{2,3}(-[a-z]{2,4})?$/i.test(trimmed)) {
-      return false;
-    }
-
-    // Exclude parenthetical metadata
-    if (/^\([^)]+\)$/.test(trimmed)) {
-      return false;
-    }
-
-    // Exclude very short abbreviations
-    if (
-      trimmed.length === 1 ||
-      (trimmed.length === 2 && /^[A-Z#]+$/.test(trimmed))
-    ) {
-      return false;
-    }
-
-    return true;
+    // Rule 4: EVERYTHING ELSE → translate
+    // This includes: single characters ("p", "A"), words, sentences, mixed content, formatted numbers, decimals, etc.
+    const lengthNote =
+      trimmed.length === 1
+        ? ' (single character)'
+        : trimmed.length <= 3
+          ? ' (short)'
+          : '';
+    console.log(
+      `   ✅ TRANSLATE${lengthNote}: "${trimmed.substring(0, 50)}${trimmed.length > 50 ? '...' : ''}"`,
+    );
+    return 'translate';
   }
 
   /**
@@ -326,7 +314,6 @@ export class DocxTranslationService {
    * MXLIFF is an XML format used by translation tools
    */
   private async extractTextFromMxliff(file: File): Promise<string> {
-    // Read as ArrayBuffer first to store the original buffer
     const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
@@ -334,100 +321,40 @@ export class DocxTranslationService {
         reject(new Error(`FileReader failed: ${reader.error?.message}`));
       reader.readAsArrayBuffer(file);
     });
-
-    // Store the original buffer for later use
     this.originalBuffer = arrayBuffer;
 
-    // Convert to text for parsing
-    const decoder = new TextDecoder('utf-8');
-    const text = decoder.decode(arrayBuffer);
+    const segments = await this.extractSegmentsFromMxliff();
+    const toTranslate = segments.filter((s) => s.kind === 'translate');
 
-    console.log('📄 MXLIFF file size:', text.length, 'chars');
+    console.log(`\n📤 ============ PREPARING TEXT FOR AI ============`);
+    console.log(`   📊 Total segments to translate: ${toTranslate.length}`);
+    console.log(`   📋 Format: Cell-numbered segments`);
 
-    if (!text || text.trim().length === 0) {
-      throw new Error('The MXLIFF file is empty.');
+    // Show sample of what's being sent
+    if (toTranslate.length > 0) {
+      console.log(`   📄 First 3 segments being sent:`);
+      toTranslate.slice(0, 3).forEach((s, idx) => {
+        const preview = s.sourceText.substring(0, 60);
+        console.log(
+          `      Cell #${idx + 1}: "${preview}${s.sourceText.length > 60 ? '...' : ''}"`,
+        );
+      });
     }
 
-    try {
-      // Parse XML
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(text, 'text/xml');
+    // Format each segment with cell number for the AI
+    const formattedSegments = toTranslate.map((s, idx) => {
+      const cellNum = idx + 1;
+      return `[Cell #${cellNum}]\n${s.sourceText}`;
+    });
 
-      // Check for parsing errors
-      const parserError = xmlDoc.querySelector('parsererror');
-      if (parserError) {
-        throw new Error('Invalid XML format in MXLIFF file.');
-      }
+    const result = formattedSegments.join('\n\n');
 
-      // Find the <body> element to avoid extracting from header preview skeleton
-      const bodyElement = xmlDoc.querySelector('body');
-      if (!bodyElement) {
-        throw new Error('No <body> element found in MXLIFF file.');
-      }
+    console.log(`   ✅ Text prepared (${result.length} characters)`);
+    console.log(
+      `   ⚠️  AI MUST return exactly ${toTranslate.length} translations in table format\n`,
+    );
 
-      // Extract text from <source> elements inside <trans-unit> within <body> only
-      const transUnits = bodyElement.querySelectorAll('trans-unit');
-
-      if (transUnits.length === 0) {
-        throw new Error('No translatable content found in MXLIFF file.');
-      }
-
-      const extractedSegments: string[] = [];
-      transUnits.forEach((transUnit) => {
-        // Get trans-unit ID to filter out metadata segments
-        const transUnitId = transUnit.getAttribute('id') || '';
-
-        // Real translation segments have IDs with format like "taskId:segmentNumber"
-        // Skip trans-units that don't match this pattern or are likely metadata
-        const hasValidId =
-          transUnitId.includes(':') && /:\d+$/.test(transUnitId);
-
-        if (!hasValidId) {
-          return; // Skip metadata segments
-        }
-
-        // Get the direct child <source> element (not from alt-trans)
-        const sourceElement = transUnit.querySelector(':scope > source');
-        const content = sourceElement?.textContent?.trim();
-
-        if (!content || content.length === 0) {
-          return;
-        }
-
-        // Additional filter: exclude segments with inline formatting tags (UI metadata)
-        const hasInlineFormatting =
-          content.includes('{i>') || content.includes('<i}');
-
-        // Exclude known metadata patterns
-        const isMetadata =
-          content.match(
-            /^(ace-arab|en-af|\d+|converter\d+|Memsource|MT|Click here to enter text\.)$/i,
-          ) ||
-          content.match(/^\{i>.*<i\}$/) ||
-          content.match(/^[A-Za-z0-9_-]+_dc\d+:\d+$/); // Segment IDs as content
-
-        if (!hasInlineFormatting && !isMetadata) {
-          extractedSegments.push(content);
-        }
-      });
-
-      if (extractedSegments.length === 0) {
-        throw new Error('No text content found in MXLIFF source elements.');
-      }
-
-      console.log(
-        `✅ Extracted ${extractedSegments.length} source segments from MXLIFF`,
-      );
-      console.log('   📄 Preview (first 3 segments):');
-      extractedSegments.slice(0, 3).forEach((seg, i) => {
-        console.log(`      ${i + 1}. ${seg}`);
-      });
-
-      // Join segments with double newlines for readability
-      return extractedSegments.join('\n\n');
-    } catch (err: any) {
-      throw new Error(`Failed to parse MXLIFF: ${err?.message || err}`);
-    }
+    return result;
   }
 
   /**
@@ -438,66 +365,34 @@ export class DocxTranslationService {
     fileBuffer: ArrayBuffer,
   ): Promise<{ source: string; target: string }[]> {
     try {
-      // Convert ArrayBuffer to string
       const decoder = new TextDecoder('utf-8');
       const xmlText = decoder.decode(fileBuffer);
-
-      // Parse XML
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-
-      // Check for parsing errors
-      const parserError = xmlDoc.querySelector('parsererror');
-      if (parserError) {
+      if (xmlDoc.querySelector('parsererror'))
         throw new Error('Failed to parse MXLIFF XML');
-      }
 
-      // Find the <body> element to avoid extracting from header preview skeleton
       const bodyElement = xmlDoc.querySelector('body');
-      if (!bodyElement) {
-        return [];
-      }
+      if (!bodyElement) return [];
 
-      // Extract source and target from trans-units
       const transUnits = bodyElement.querySelectorAll('trans-unit');
       const segments: { source: string; target: string }[] = [];
 
       transUnits.forEach((transUnit) => {
-        // Get trans-unit ID to filter out metadata segments
-        const transUnitId = transUnit.getAttribute('id') || '';
+        const id = transUnit.getAttribute('id') ?? '';
+        if (!id.includes(':') || !/:\d+$/.test(id)) return;
 
-        // Real translation segments have IDs with format like "taskId:segmentNumber"
-        // Skip trans-units that don't match this pattern or are likely metadata
-        const hasValidId =
-          transUnitId.includes(':') && /:\d+$/.test(transUnitId);
+        const isLocked = transUnit.getAttribute('m:locked') === 'true';
+        const sourceText =
+          transUnit.querySelector(':scope > source')?.textContent?.trim() ?? '';
+        const targetText =
+          transUnit.querySelector(':scope > target')?.textContent?.trim() ?? '';
 
-        if (!hasValidId) {
-          return; // Skip metadata segments
-        }
+        const kind = this.classifySegment(sourceText, isLocked);
 
-        const sourceElement = transUnit.querySelector(':scope > source');
-        const targetElement = transUnit.querySelector(':scope > target');
-
-        const sourceText = sourceElement?.textContent?.trim() || '';
-        const targetText = targetElement?.textContent?.trim() || '';
-
-        // Additional filter: exclude segments with inline formatting tags (UI metadata)
-        const hasInlineFormatting =
-          sourceText.includes('{i>') || sourceText.includes('<i}');
-
-        // Exclude known metadata patterns
-        const isMetadata =
-          sourceText.match(
-            /^(ace-arab|en-af|\d+|converter\d+|Memsource|MT|Click here to enter text\.)$/i,
-          ) ||
-          sourceText.match(/^\{i>.*<i\}$/) ||
-          sourceText.match(/^[A-Za-z0-9_-]+_dc\d+:\d+$/); // Segment IDs as content
-
-        if (sourceText && !hasInlineFormatting && !isMetadata) {
-          segments.push({
-            source: sourceText,
-            target: targetText,
-          });
+        // Show translate + copy-source in preview, skip 'skip'
+        if (kind !== 'skip') {
+          segments.push({ source: sourceText, target: targetText });
         }
       });
 
@@ -507,7 +402,6 @@ export class DocxTranslationService {
       return [];
     }
   }
-
   private async callProvider(
     provider: Provider,
     apiKey: string,
@@ -802,11 +696,9 @@ export class DocxTranslationService {
   /**
    * Extract segments with their Phrase segment IDs from the original DOCX
    * This extracts from LOCKED source SDTs to match the order of the TermBase table
-   * @returns Array of segments with ID, segment number, and source text
+   * @returns Array of segments with ID, segment number, source text, and classification
    */
-  async extractSegmentsWithIds(): Promise<
-    { id: string; segNum: number; sourceText: string }[]
-  > {
+  async extractSegmentsWithIds(): Promise<Segment[]> {
     if (!this.originalDocxBuffer) {
       throw new Error('Original DOCX buffer not set');
     }
@@ -839,7 +731,7 @@ export class DocxTranslationService {
 
       // Find all SDT (Structured Document Tag) elements
       const sdtElements = xmlDoc.querySelectorAll('sdt');
-      const segments: { id: string; segNum: number; sourceText: string }[] = [];
+      const segments: Segment[] = [];
       let segNum = 0;
 
       sdtElements.forEach((sdt) => {
@@ -871,22 +763,33 @@ export class DocxTranslationService {
 
         const trimmed = sourceText.trim();
 
-        // Filter out headers and metadata using the same logic as extraction
-        if (trimmed && this.isTranslatableContent(trimmed)) {
+        // Accept all non-empty content and classify it
+        if (trimmed) {
+          // For DOCX, locked SDTs are SOURCE cells (not "don't touch" locked)
+          const kind = this.classifySegment(trimmed, false);
           segments.push({
             id: segmentId,
             segNum: segNum++,
             sourceText: trimmed,
+            kind,
           });
         }
       });
 
       console.log('✅ Segment extraction complete!');
       console.log('   📊 Total segments found:', segments.length);
+      console.log(
+        `   translate: ${segments.filter((s) => s.kind === 'translate').length}`,
+      );
+      console.log(
+        `   copy-source: ${segments.filter((s) => s.kind === 'copy-source').length}`,
+      );
+
       if (segments.length > 0) {
         console.log('   📄 First segment preview:');
         console.log('      ID:', segments[0].id);
         console.log('      Text:', segments[0].sourceText.substring(0, 100));
+        console.log('      Kind:', segments[0].kind);
       }
       return segments;
     } catch (error: any) {
@@ -1067,102 +970,90 @@ export class DocxTranslationService {
 
   /**
    * Extract segments with their IDs from MXLIFF file
-   * @returns Array of segments with ID, segment number, and source text
+   * @returns Array of segments with ID, segment number, source text, and classification
    */
-  async extractSegmentsFromMxliff(): Promise<
-    { id: string; segNum: number; sourceText: string }[]
-  > {
-    if (!this.originalBuffer) {
-      throw new Error('Original MXLIFF buffer not set');
-    }
+  async extractSegmentsFromMxliff(): Promise<Segment[]> {
+    if (!this.originalBuffer) throw new Error('Original MXLIFF buffer not set');
 
-    console.log('\n🔍 EXTRACTING SEGMENTS from MXLIFF...');
     console.log(
-      '   📦 Buffer size:',
-      (this.originalBuffer.byteLength / 1024).toFixed(2),
-      'KB',
+      '\n🔍 ============ EXTRACTING & CLASSIFYING SEGMENTS ============',
     );
 
-    try {
-      // Convert ArrayBuffer to string
-      const decoder = new TextDecoder('utf-8');
-      const xmlText = decoder.decode(this.originalBuffer);
+    const decoder = new TextDecoder('utf-8');
+    const xmlText = decoder.decode(this.originalBuffer);
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+    if (xmlDoc.querySelector('parsererror'))
+      throw new Error('Failed to parse MXLIFF XML');
 
-      // Parse XML
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+    const bodyElement = xmlDoc.querySelector('body');
+    if (!bodyElement)
+      throw new Error('No <body> element found in MXLIFF file.');
 
-      // Check for parsing errors
-      const parserError = xmlDoc.querySelector('parsererror');
-      if (parserError) {
-        throw new Error('Failed to parse MXLIFF XML');
-      }
+    const transUnits = bodyElement.querySelectorAll('trans-unit');
+    const segments: Segment[] = [];
+    let segNum = 0;
 
-      // Find the <body> element to avoid extracting from header preview skeleton
-      const bodyElement = xmlDoc.querySelector('body');
-      if (!bodyElement) {
-        throw new Error('No <body> element found in MXLIFF file.');
-      }
+    transUnits.forEach((transUnit) => {
+      const id = transUnit.getAttribute('id');
+      if (!id || !id.includes(':') || !/:\d+$/.test(id)) return;
 
-      // Find all trans-unit elements within the body
-      const transUnits = bodyElement.querySelectorAll('trans-unit');
-      const segments: { id: string; segNum: number; sourceText: string }[] = [];
-      let segNum = 0;
+      const isLocked = transUnit.getAttribute('m:locked') === 'true';
+      const sourceText =
+        transUnit.querySelector(':scope > source')?.textContent?.trim() ?? '';
+      const kind = this.classifySegment(sourceText, isLocked);
 
-      transUnits.forEach((transUnit) => {
-        const segmentId = transUnit.getAttribute('id');
-        if (!segmentId) {
-          return;
-        }
+      segments.push({ id, segNum: segNum++, sourceText, kind });
+    });
 
-        // Real translation segments have IDs with format like "taskId:segmentNumber"
-        const hasValidId = segmentId.includes(':') && /:\d+$/.test(segmentId);
+    // Summary statistics
+    const translateCount = segments.filter(
+      (s) => s.kind === 'translate',
+    ).length;
+    const copySourceCount = segments.filter(
+      (s) => s.kind === 'copy-source',
+    ).length;
+    const skipCount = segments.filter((s) => s.kind === 'skip').length;
 
-        if (!hasValidId) {
-          return; // Skip metadata segments
-        }
+    console.log(`\n📊 ============ CLASSIFICATION SUMMARY ============`);
+    console.log(`   📝 Total segments: ${segments.length}`);
+    console.log(`   ✅ TRANSLATE (will be sent to AI): ${translateCount}`);
+    console.log(`   🔢 COPY-SOURCE (pure numbers): ${copySourceCount}`);
+    console.log(`   🔒 SKIP (locked/empty): ${skipCount}`);
+    console.log(`   ════════════════════════════════════════════════`);
+    console.log(
+      `   🎯 Segments that will get target text: ${translateCount + copySourceCount}`,
+    );
+    console.log(
+      `   ⚠️  Note: 'SKIP' segments already have translations and won't be modified`,
+    );
+    console.log(`\n`);
 
-        // Extract source text
-        const sourceElement = transUnit.querySelector(':scope > source');
-        const sourceText = sourceElement?.textContent?.trim() || '';
+    // Show examples of each type
+    const translateExamples = segments
+      .filter((s) => s.kind === 'translate')
+      .slice(0, 3);
+    const copySourceExamples = segments
+      .filter((s) => s.kind === 'copy-source')
+      .slice(0, 3);
 
-        if (!sourceText) {
-          return;
-        }
-
-        // Additional filter: exclude segments with inline formatting tags (UI metadata)
-        const hasInlineFormatting =
-          sourceText.includes('{i>') || sourceText.includes('<i}');
-
-        // Exclude known metadata patterns
-        const isMetadata =
-          sourceText.match(
-            /^(ace-arab|en-af|\d+|converter\d+|Memsource|MT|Click here to enter text\.)$/i,
-          ) ||
-          sourceText.match(/^\{i>.*<i\}$/) ||
-          sourceText.match(/^[A-Za-z0-9_-]+_dc\d+:\d+$/); // Segment IDs as content
-
-        if (!hasInlineFormatting && !isMetadata) {
-          segments.push({
-            id: segmentId,
-            segNum: segNum++,
-            sourceText,
-          });
-        }
+    if (translateExamples.length > 0) {
+      console.log(`   📝 Example TRANSLATE segments:`);
+      translateExamples.forEach((s) => {
+        console.log(
+          `      "${s.sourceText.substring(0, 80)}${s.sourceText.length > 80 ? '...' : ''}"`,
+        );
       });
-
-      console.log('✅ Segment extraction complete!');
-      console.log('   📊 Total segments found:', segments.length);
-      if (segments.length > 0) {
-        console.log('   📄 First segment preview:');
-        console.log('      ID:', segments[0].id);
-        console.log('      Text:', segments[0].sourceText.substring(0, 100));
-      }
-      return segments;
-    } catch (error: any) {
-      console.error('❌ Failed to extract MXLIFF segments:', error);
-      throw new Error(`Failed to extract MXLIFF segments: ${error.message}`);
     }
+
+    if (copySourceExamples.length > 0) {
+      console.log(`   🔢 Example COPY-SOURCE segments:`);
+      copySourceExamples.forEach((s) => {
+        console.log(`      "${s.sourceText}"`);
+      });
+    }
+
+    return segments;
   }
 
   /**
@@ -1173,108 +1064,86 @@ export class DocxTranslationService {
   async injectTranslationsIntoMxliff(
     translations: { segmentId: string; targetText: string }[],
   ): Promise<Blob> {
-    if (!this.originalBuffer) {
-      throw new Error('Original MXLIFF buffer not set');
-    }
+    if (!this.originalBuffer) throw new Error('Original MXLIFF buffer not set');
 
-    console.log('\n💉 INJECTING TRANSLATIONS into MXLIFF...');
-    console.log('   📊 Translations to inject:', translations.length);
-    if (translations.length > 0) {
-      console.log('   📄 First translation preview:');
-      console.log('      Segment ID:', translations[0].segmentId);
-      console.log('      Text:', translations[0].targetText.substring(0, 100));
-    }
+    console.log('\n💉 ============ INJECTING TRANSLATIONS ============');
+    console.log('   📊 AI translations received:', translations.length);
 
-    try {
-      // Convert ArrayBuffer to string
-      const decoder = new TextDecoder('utf-8');
-      const xmlText = decoder.decode(this.originalBuffer);
+    const decoder = new TextDecoder('utf-8');
+    const xmlText = decoder.decode(this.originalBuffer);
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+    if (xmlDoc.querySelector('parsererror'))
+      throw new Error('Failed to parse MXLIFF XML');
 
-      // Parse XML
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+    // Map of AI translations
+    const translationMap = new Map(
+      translations.map((t) => [t.segmentId, t.targetText]),
+    );
 
-      // Check for parsing errors
-      const parserError = xmlDoc.querySelector('parsererror');
-      if (parserError) {
-        throw new Error('Failed to parse MXLIFF XML');
+    // Map of copy-source segments (pure numbers → keep as-is)
+    const allSegments = await this.extractSegmentsFromMxliff();
+    const copySourceMap = new Map(
+      allSegments
+        .filter((s) => s.kind === 'copy-source')
+        .map((s) => [s.id, s.sourceText]),
+    );
+
+    const transUnits = xmlDoc.querySelectorAll('trans-unit');
+    let aiTranslatedCount = 0;
+    let copiedNumbersCount = 0;
+    let skippedCount = 0;
+
+    transUnits.forEach((transUnit) => {
+      const id = transUnit.getAttribute('id');
+      if (!id) return;
+
+      let targetText: string | undefined;
+      let action: 'AI' | 'COPY' | 'SKIP' = 'SKIP';
+
+      if (translationMap.has(id)) {
+        targetText = translationMap.get(id)!;
+        action = 'AI';
+        aiTranslatedCount++;
+      } else if (copySourceMap.has(id)) {
+        targetText = copySourceMap.get(id)!;
+        action = 'COPY';
+        copiedNumbersCount++;
+      } else {
+        skippedCount++;
+        return; // skip — leave target untouched (locked segments)
       }
 
-      // Create translation map for quick lookup
-      const translationMap = new Map<string, string>();
-      translations.forEach((t) =>
-        translationMap.set(t.segmentId, t.targetText),
-      );
-
-      // Find all trans-unit elements and update targets
-      const transUnits = xmlDoc.querySelectorAll('trans-unit');
-      let updatedCount = 0;
-
-      transUnits.forEach((transUnit) => {
-        const segmentId = transUnit.getAttribute('id');
-        if (!segmentId) {
-          return;
+      let targetElement = transUnit.querySelector(':scope > target');
+      if (!targetElement) {
+        targetElement = xmlDoc.createElement('target');
+        const sourceElement = transUnit.querySelector(':scope > source');
+        if (sourceElement) {
+          sourceElement.after(targetElement);
+        } else {
+          transUnit.appendChild(targetElement);
         }
+      }
 
-        const translation = translationMap.get(segmentId);
-        if (!translation) {
-          return;
-        }
+      targetElement.textContent = targetText;
+      transUnit.setAttribute('approved', 'yes');
+    });
 
-        // Find or create target element
-        let targetElement = transUnit.querySelector('target');
-        if (!targetElement) {
-          // Create target element if it doesn't exist
-          targetElement = xmlDoc.createElement('target');
-          const sourceElement = transUnit.querySelector('source');
-          if (sourceElement) {
-            // Insert target after source
-            sourceElement.parentNode?.insertBefore(
-              targetElement,
-              sourceElement.nextSibling,
-            );
-          } else {
-            // Just append to trans-unit
-            transUnit.appendChild(targetElement);
-          }
-        }
+    console.log(`\n📊 ============ INJECTION SUMMARY ============`);
+    console.log(`   ✅ AI Translated: ${aiTranslatedCount} segments`);
+    console.log(`   🔢 Copied Numbers: ${copiedNumbersCount} segments`);
+    console.log(`   🔒 Skipped (locked): ${skippedCount} segments`);
+    console.log(`   ════════════════════════════════════════════`);
+    console.log(
+      `   🎯 Total segments updated: ${aiTranslatedCount + copiedNumbersCount}`,
+    );
+    console.log(
+      `   ✅ Coverage: ${(((aiTranslatedCount + copiedNumbersCount) / transUnits.length) * 100).toFixed(1)}% of all segments`,
+    );
+    console.log(`\n`);
 
-        // Update target text
-        targetElement.textContent = translation;
-
-        // Mark as translated (optional - update state attribute if present)
-        transUnit.setAttribute('approved', 'yes');
-
-        updatedCount++;
-      });
-
-      console.log('✅ Injection complete!');
-      console.log(
-        '   📊 Segments updated:',
-        updatedCount,
-        'out of',
-        translations.length,
-      );
-
-      // Serialize XML back to string
-      const serializer = new XMLSerializer();
-      const updatedXml = serializer.serializeToString(xmlDoc);
-
-      // Create blob
-      const blob = new Blob([updatedXml], { type: 'application/x-xliff+xml' });
-
-      console.log('✅ Modified MXLIFF ready!');
-      console.log(
-        '   📊 Output file size:',
-        (blob.size / 1024).toFixed(2),
-        'KB',
-      );
-      return blob;
-    } catch (error: any) {
-      console.error('❌ Failed to inject translations into MXLIFF:', error);
-      throw new Error(
-        `Failed to inject translations into MXLIFF: ${error.message}`,
-      );
-    }
+    const serializer = new XMLSerializer();
+    const updatedXml = serializer.serializeToString(xmlDoc);
+    return new Blob([updatedXml], { type: 'application/x-xliff+xml' });
   }
 }

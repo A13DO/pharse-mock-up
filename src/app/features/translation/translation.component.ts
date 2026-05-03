@@ -52,6 +52,8 @@ export class TranslationComponent implements OnInit {
   projectUid: string | null = null;
   jobUid: string | null = null;
   job: Job | null = null;
+  sourceLang: string = 'English';
+  targetLang: string = 'Arabic';
 
   // Loading states
   loading = false;
@@ -84,9 +86,10 @@ export class TranslationComponent implements OnInit {
   isUploading = signal<boolean>(false);
   uploadSuccess = signal<boolean>(false);
   uploadMessage = signal<string | null>(null);
-  segmentIdMap = signal<{ id: string; segNum: number; sourceText: string }[]>(
-    [],
-  );
+  // Change this signal type
+  segmentIdMap = signal<
+    { id: string; segNum: number; sourceText: string; kind: string }[]
+  >([]);
 
   providers: ProviderInfo[] = [
     {
@@ -200,7 +203,7 @@ export class TranslationComponent implements OnInit {
 
 ## Task
 
-Extract key terms from the provided English text and translate them into aa.
+Extract key terms from the provided {{SOURCE_LANG}} text and translate them into {{TARGET_LANG}}.
 
 ## Extract ONLY:
 
@@ -212,97 +215,118 @@ Extract key terms from the provided English text and translate them into aa.
 ## Rules
 
 * Keep source terms exactly as written
-* Provide accurate translations in aa
+* Provide accurate translations in {{TARGET_LANG}}
 * No duplicates
 * Ignore irrelevant words
 * Use consistent terminology
 
 ## Output
 
-Return a table:
+Return a table with these EXACT column headers in ENGLISH (do NOT translate the header names):
 
-| # | Source Term (English) | REQUIRED Translation (aa) | Category |
+| # | Source Term | Target Translation | Category |
+
+⚠️ **Column headers must remain in ENGLISH. Only the content (terms and translations) should be in {{SOURCE_LANG}} and {{TARGET_LANG}}.**
 
 * Number rows starting from 1
+* Source Term column: terms from {{SOURCE_LANG}} text
+* Target Translation column: translations in {{TARGET_LANG}}
 * Assign ONE category per term`);
 
   // Default translation prompt for Step 2
-  defaultTranslationPrompt = `You are a professional English to aa translator with strong domain expertise.
+  defaultTranslationPrompt = `
+You are a highly experienced professional translator with broad expertise across multiple domains, specializing in {{SOURCE_LANG}} to {{TARGET_LANG}} translation.
 
 ## Task
+You will receive text segments in numbered cells from a general document. Your task is to provide accurate, professional translations while maintaining the exact meaning, tone, and structure of the source text.
 
-You will receive numbered text segments from a document.
+## ⚠️ TERMINOLOGY COMPLIANCE — HIGHEST PRIORITY ⚠️
 
-For each segment:
+This is the MOST CRITICAL requirement. You MUST follow the terminology glossary as specified. This is NON-NEGOTIABLE.
 
-* Translate accurately based on context and metadata if provided
-* Ensure output is suitable for localization workflows such as Phrase
-* Adapt tone if needed
+**MANDATORY RULES FOR TERMINOLOGY:**
+- When a source term from the glossary appears in the source text, you MUST use the corresponding translation from the glossary — no synonyms, no alternatives, no variations.
+- This applies to EVERY occurrence of the term in EVERY cell, without exception.
+- Do NOT paraphrase, substitute, or use alternative translations for glossary terms.
+- If a glossary term appears multiple times in the text, use the SAME glossary translation EVERY time.
+- Terminology compliance will be checked by automated QA. Any deviation will be flagged as a critical error.
+- The glossary overrides your own translation preferences. Even if you believe a different translation is better, you MUST use the glossary translation.
 
----
+**CAPITALIZATION FLEXIBILITY FOR GLOSSARY TERMS:**
+- Glossary terms may appear in the glossary with specific capitalization (e.g., Title Case). However, you MUST apply standard English capitalization rules when using them in context.
+- If a glossary term appears in the MIDDLE of a sentence and it is NOT a proper noun (person name, organization name, country, brand, etc.), use LOWERCASE.
+- If a glossary term appears at the BEGINNING of a sentence, capitalize the first letter as normal.
+- If a glossary term IS a proper noun (name of a person, organization, institution, country, city, brand, etc.), ALWAYS keep it capitalized regardless of position.
+- Example: If the glossary says "Disciplinary Board" but it is not a specific named entity, write "disciplinary board" mid-sentence. But if it refers to a specific named body like "The Dubai Disciplinary Board", keep the capitalization.
 
-## Terminology Compliance – Critical
+## 📋 MANDATORY TERMINOLOGY GLOSSARY
+The following terms MUST be translated EXACTLY as specified. No exceptions. No alternatives.
 
-You MUST follow the glossary strictly:
+⚠️ **Note: Column headers below are in ENGLISH. Source terms are in {{SOURCE_LANG}}, required translations are in {{TARGET_LANG}}.**
 
-* Use the exact required translation for each listed term
-* No synonyms or variations allowed
-* Repeat the same translation every time the term appears
-* Glossary rules override all other choices
-
-## Glossary
-
-| # | Source Term (English) | REQUIRED Translation (aa) | Category |
+| # | Source Term | Target Translation | Category |
 |---|---|---|---|
-| 1 | Example Term | مثال | Company names |
 
-**REMINDER: Every term above MUST be used exactly as specified.**
 
----
+**REMINDER: Every term above MUST appear in your translation exactly as specified whenever the source term appears in the source text. This is mandatory and will be verified.**
 
-## Output Requirement
+## Other Critical Rules
 
-For each cell, provide two versions:
+1. **COMPLETE TRANSLATION — 100% COVERAGE REQUIRED**: 
+   - You MUST translate EVERY single cell provided. Do NOT skip, summarize, condense, merge, or omit any cell or any part of its content.
+   - Each cell must be translated individually and completely.
+   - **SINGLE CHARACTERS**: Even if a cell contains only a single letter or character (e.g., "p", "A", "x"), you MUST translate it if appropriate for the target language. Do NOT skip single-character cells.
+   - **SHORT CONTENT**: Cells with 1-3 words are just as important as longer cells. Translate them completely.
+   - **EVERY CELL COUNTS**: If you receive 150 cells, you MUST return exactly 150 translated cells in your table. No exceptions.
+   - **VERIFICATION**: Your output will be automatically verified to ensure every input cell has a corresponding translation.
 
-1. Initial Translation
-   Accurate and complete, may be slightly literal, must follow glossary
+2. **NO MODIFICATIONS TO SOURCE CONTENT**: Do NOT add, remove, rephrase, reorder, or alter any information. The translation must be a faithful and complete rendering of the source text. Do not add explanatory notes, comments, or interpretations.
 
-2. Final Translation
-   Natural, fluent, polished translation
-   Improved readability
-   Strictly follows glossary
-   This is the version used for export
+3. **PRESERVE ALL TAGS AND PLACEHOLDERS**: Tags such as {1}, {2}, <1>, </1>, <2>, </2>, {1>text<1}, etc. MUST remain in their EXACT positions in the translation. These are formatting markers — they must NOT be translated, moved, deleted, or modified. They should appear in the target text in the same logical position relative to the surrounding translated text.
 
----
+4. **MAINTAIN FORMATTING**: Preserve all line breaks, paragraph structures, numbering, bullet points, and any other formatting present in the source text.
 
-## Rules
+5. **PROFESSIONAL REGISTER**: Maintain the formal, professional register appropriate for general documents. Use standard Arabic general terminology and phrasing conventions.
 
-* Translate everything
-* Do not change meaning
-* Preserve placeholders like {1} and <1>
-* Keep formatting exactly
-* Use natural, professional language
+6. **IDIOMATIC AND CREATIVE TRANSLATION — CRITICAL**: This is extremely important. You MUST produce translations that are idiomatic, creative, and natural-sounding in Arabic. Specifically:
+   - NEVER produce literal, word-for-word translations. Every sentence must read as if it were originally written by a native Arabic speaker.
+   - Use idiomatic expressions, collocations, and phrasing conventions natural to Arabic.
+   - Restructure sentences when necessary to achieve natural Arabic flow — you are NOT bound to the source sentence structure.
+   - The translation must sound professional, polished, and fluent — not mechanical or robotic.
+   - Prioritize readability and eloquence while preserving the complete meaning of the source.
+   - For general documents, use the standard phrasing and conventions expected in professional Arabic general writing.
 
----
+7. **ENGLISH CAPITALIZATION RULES** (when translating into English):
+   - Capitalize the first word of every sentence.
+   - Capitalize proper nouns: names of people, organizations, institutions, countries, cities, brands, specific laws, and named entities.
+   - Do NOT capitalize common nouns, adjectives, or general terms mid-sentence unless they are proper nouns.
+   - For titles and headings, use Title Case (capitalize major words).
+   - When in doubt whether a term is a proper noun, consider: does it refer to a SPECIFIC named entity? If yes, capitalize. If it is a general/generic reference, use lowercase.
+   - Examples: "the court ruled that..." (generic court) vs. "the Supreme Court ruled that..." (specific named court). "the company's policy" (generic) vs. "Google's policy" (named entity).
 
 ## Output Format
+You MUST present your translation in a table with exactly 3 columns:
+| Cell # | Source | Translation |
 
-| Cell # | Source | Initial Translation | Final Translation |
+⚠️ **IMPORTANT: Column headers MUST remain in ENGLISH. Do NOT translate the column names "Cell #", "Source", or "Translation" into {{TARGET_LANG}} or any other language. They must stay exactly as shown above.**
 
-* Keep all cells
-* Do not merge or skip
-* Keep numbering exact
+- The Cell # must match the source cell number exactly
+- Include the complete source text in the Source column
+- Provide the full translation in the Translation column
+- Do NOT merge cells or split cells across rows
 
----
+## Delivery Instructions
+- I will send the text in batches of approximately 1500 words per message
+- Each batch contains numbered cells
+- Translate ALL cells in each batch completely
+- Maintain consistency across batches
+- If a cell contains only a tag or placeholder with no translatable text, reproduce it as-is in the Translation column
 
-## Note
-
-Final Translation column is the only one used for Phrase export
-Ensure it is clean and production-ready`;
+Please confirm you understand these instructions, and I will begin sending the text segments.`;
 
   // Quick prompt examples
   quickPrompts = [
-    'Extract key terms and translate them into aa. Return a table with columns: # | Source Term (English) | REQUIRED Translation (aa) | Category',
+    'Extract key terms and translate them. Return a table with ENGLISH headers: # | Source Term | Target Translation | Category',
     'Translate this document to Spanish while maintaining professional tone and technical accuracy.',
     'Translate to French. Keep all proper nouns and brand names unchanged.',
     'Translate to German. Preserve all formatting, bullet points, and numbered lists exactly.',
@@ -420,47 +444,67 @@ Ensure it is clean and production-ready`;
     if (!this.projectUid || !this.jobUid) return;
 
     this.loading = true;
-    this.phraseApi.getJobs(this.projectUid).subscribe({
-      next: (response) => {
-        this.job = response.content.find((j) => j.uid === this.jobUid) || null;
-        this.loading = false;
-        if (this.job) {
-          // Update prompts with job-specific information
-          this.updatePromptsWithJobInfo();
-          // Auto-fetch the bilingual file
-          this.downloadOriginalFile();
-        }
+
+    // Load project to get source language
+    this.phraseApi.getProject(this.projectUid).subscribe({
+      next: (project) => {
+        this.sourceLang = project.sourceLang || 'English';
+        console.log('✅ Source language loaded:', this.sourceLang);
+
+        // Then load job to get target language
+        this.phraseApi.getJobs(this.projectUid!).subscribe({
+          next: (response) => {
+            this.job =
+              response.content.find((j) => j.uid === this.jobUid) || null;
+            this.loading = false;
+            if (this.job) {
+              this.targetLang = this.job.targetLang || 'Arabic';
+              console.log('✅ Target language loaded:', this.targetLang);
+              // Update prompts with job-specific information
+              this.updatePromptsWithJobInfo();
+              // Auto-fetch the bilingual file
+              this.downloadOriginalFile();
+            }
+          },
+          error: (err) => {
+            this.error = err.message;
+            this.loading = false;
+            console.error('Failed to load job:', err);
+          },
+        });
       },
       error: (err) => {
         this.error = err.message;
         this.loading = false;
-        console.error('Failed to load job:', err);
+        console.error('Failed to load project:', err);
       },
     });
   }
 
   /**
-   * Update prompts with job-specific information (target language)
+   * Update prompts with job-specific information (source and target languages)
    */
   private updatePromptsWithJobInfo(): void {
     if (!this.job) return;
 
-    const targetLang = this.job.targetLang || 'Target Language';
+    const sourceLang = this.sourceLang;
+    const targetLang = this.targetLang;
 
-    // Update base term extraction prompt - replace placeholder "aa" with actual target language
-    const currentBasePrompt = this.baseTermPrompt();
-    const updatedBasePrompt = currentBasePrompt.replace(/\baa\b/g, targetLang);
+    console.log(`🔄 Updating prompts: ${sourceLang} → ${targetLang}`);
+
+    // Update base term extraction prompt
+    let updatedBasePrompt = this.baseTermPrompt()
+      .replace(/\{\{SOURCE_LANG\}\}/g, sourceLang)
+      .replace(/\{\{TARGET_LANG\}\}/g, targetLang);
     this.baseTermPrompt.set(updatedBasePrompt);
 
-    // Update translation prompt - replace placeholder "aa" with actual target language
-    const currentTranslationPrompt = this.defaultTranslationPrompt;
-    const updatedTranslationPrompt = currentTranslationPrompt.replace(
-      /\baa\b/g,
-      targetLang,
-    );
+    // Update translation prompt
+    let updatedTranslationPrompt = this.defaultTranslationPrompt
+      .replace(/\{\{SOURCE_LANG\}\}/g, sourceLang)
+      .replace(/\{\{TARGET_LANG\}\}/g, targetLang);
     this.customPrompt.set(updatedTranslationPrompt);
 
-    console.log(`✅ Prompts updated for target language: ${targetLang}`);
+    console.log(`✅ Prompts updated for: ${sourceLang} → ${targetLang}`);
   }
 
   async downloadOriginalFile(): Promise<void> {
@@ -783,76 +827,148 @@ Ensure it is clean and production-ready`;
     headers: string[];
     rows: string[][];
   }): Promise<{ segmentId: string; targetText: string }[]> {
-    const segmentMap = this.segmentIdMap();
+    const allSegments = this.segmentIdMap();
     const translations: { segmentId: string; targetText: string }[] = [];
 
-    // Find the column indices
+    // Only translate-kind segments were sent to AI, so cell #1 = first translate segment
+    const translatableSegments = allSegments.filter(
+      (s) => s.kind === 'translate',
+    );
+
     const cellNumIndex = tableData.headers.findIndex(
       (h) => h.toLowerCase().includes('cell') || h.toLowerCase().includes('#'),
     );
-    const finalTranslationIndex = tableData.headers.findIndex((h) =>
-      h.toLowerCase().includes('final'),
-    );
 
-    if (cellNumIndex === -1 || finalTranslationIndex === -1) {
-      console.warn('⚠️ Could not find Cell # or Final Translation columns');
+    // Check for "Translation" in multiple languages as fallback
+    // Common translations: Translation (en), Traduction (fr), Traducción (es),
+    // Tradução (pt), Traduzione (it), Übersetzung (de), Vertaling (nl), ترجمة (ar), 翻译 (zh)
+    const translationIndex = tableData.headers.findIndex((h) => {
+      const lower = h.toLowerCase();
+      return (
+        lower.includes('translation') ||
+        lower.includes('traduction') ||
+        lower.includes('traducción') ||
+        lower.includes('traduccion') ||
+        lower.includes('tradução') ||
+        lower.includes('traducao') ||
+        lower.includes('traduzione') ||
+        lower.includes('übersetzung') ||
+        lower.includes('ubersetzung') ||
+        lower.includes('vertaling') ||
+        h.includes('ترجمة') ||
+        h.includes('翻译') ||
+        h.includes('翻譯') ||
+        // If AI used 3rd column and we can't match, assume it's the translation column
+        tableData.headers.indexOf(h) === 2
+      );
+    });
+
+    if (cellNumIndex === -1 || translationIndex === -1) {
+      console.warn('⚠️ Could not find Cell # or Translation columns');
+      console.warn('⚠️ Headers found:', tableData.headers);
       return translations;
+    }
+
+    console.log('✅ Table headers detected:');
+    console.log(`   Column 0: "${tableData.headers[cellNumIndex]}" (Cell #)`);
+    console.log(`   Column 1: "${tableData.headers[1]}" (Source)`);
+    console.log(
+      `   Column 2: "${tableData.headers[translationIndex]}" (Translation)`,
+    );
+    if (tableData.headers[translationIndex] !== 'Translation') {
+      console.warn(
+        `   ⚠️ WARNING: Translation column header is "${tableData.headers[translationIndex]}" instead of "Translation"`,
+      );
+      console.warn(
+        `   ⚠️ The AI translated the column name. This should remain as "Translation" in English.`,
+      );
     }
 
     tableData.rows.forEach((row, rowIndex) => {
       const cellNumStr = row[cellNumIndex];
-      const finalTranslation = row[finalTranslationIndex];
+      const translation = row[translationIndex];
 
-      if (!cellNumStr || !finalTranslation) {
-        return;
-      }
+      if (!cellNumStr || !translation) return;
 
-      // Parse cell number (table uses 1-based numbering)
       const cellNum = parseInt(cellNumStr, 10);
       if (isNaN(cellNum)) {
         console.warn(`⚠️ Invalid cell number: "${cellNumStr}"`);
         return;
       }
 
-      // Find corresponding segment by segNum (0-based, so subtract 1 from cell number)
-      const segment = segmentMap.find((s) => s.segNum === cellNum - 1);
+      // Cell #1 = index 0 in translatableSegments only
+      const segment = translatableSegments[cellNum - 1];
       if (!segment) {
-        console.warn(
-          `⚠️ No segment found for cell #${cellNum} (looking for segNum ${cellNum - 1})`,
-        );
-        console.warn(
-          `   Available segments: ${segmentMap.length}, segNum range: 0-${segmentMap.length - 1}`,
-        );
+        console.warn(`⚠️ No translatable segment for cell #${cellNum}`);
         return;
       }
 
-      // Log first few mappings for debugging
       if (rowIndex < 3) {
         console.log(
-          `   ✓ Cell #${cellNum} → Segment [${segment.id.substring(0, 20)}...] (segNum ${segment.segNum})`,
-        );
-        console.log(
-          `      Translation: "${finalTranslation.substring(0, 60)}..."`,
+          `   ✓ Cell #${cellNum} → [${segment.id.substring(0, 20)}...] "${translation.substring(0, 60)}..."`,
         );
       }
 
       translations.push({
         segmentId: segment.id,
-        targetText: finalTranslation.trim(),
+        targetText: translation.trim(),
       });
     });
 
+    // ✅ VALIDATION: Ensure 100% coverage
     console.log(
-      `\n✅ Built ${translations.length} translations from ${tableData.rows.length} table rows`,
+      '\n🔍 ============ TRANSLATION COVERAGE VALIDATION ============',
     );
-    if (translations.length !== tableData.rows.length) {
+    console.log(`   📊 Expected translations: ${translatableSegments.length}`);
+    console.log(`   📊 Received translations: ${translations.length}`);
+
+    const coveragePercent = (
+      (translations.length / translatableSegments.length) *
+      100
+    ).toFixed(1);
+    console.log(`   📊 Coverage: ${coveragePercent}%`);
+
+    if (translations.length < translatableSegments.length) {
+      const missing = translatableSegments.length - translations.length;
       console.warn(
-        `⚠️ Warning: Only mapped ${translations.length} out of ${tableData.rows.length} rows`,
+        `   ⚠️  WARNING: ${missing} segments are MISSING translations!`,
+      );
+      console.warn(`   ⚠️  Some content will NOT be translated!`);
+
+      // Find which cells are missing
+      const receivedCells = new Set(translations.map((t) => t.segmentId));
+      const missingSegments = translatableSegments.filter(
+        (s) => !receivedCells.has(s.id),
+      );
+
+      console.warn(`   ⚠️  Missing segments (first 5):`);
+      missingSegments.slice(0, 5).forEach((s) => {
+        console.warn(
+          `      Cell #${s.segNum + 1}: "${s.sourceText.substring(0, 50)}..."`,
+        );
+      });
+
+      throw new Error(
+        `AI did not translate all segments. Expected ${translatableSegments.length} translations but received ${translations.length}. ` +
+          `${missing} segments are missing. Please check the AI response and try again.`,
+      );
+    } else if (translations.length > translatableSegments.length) {
+      console.warn(
+        `   ⚠️  WARNING: AI returned MORE translations than expected!`,
+      );
+      console.warn(`   ⚠️  Extra translations will be ignored.`);
+    } else {
+      console.log(
+        `   ✅ PERFECT: All ${translatableSegments.length} segments have translations!`,
       );
     }
+    console.log(`═════════════════════════════════════════════════════════\n`);
+
+    console.log(
+      `✅ Built ${translations.length} translations from ${tableData.rows.length} table rows`,
+    );
     return translations;
   }
-
   async copyTableText(): Promise<void> {
     try {
       await navigator.clipboard.writeText(this.getTableAsText());
