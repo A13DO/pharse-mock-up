@@ -418,12 +418,16 @@ export class DocxTranslationService {
 
     if (provider === 'anthropic') {
       // Use Phrase proxy endpoint for Claude
-      // Endpoint only accepts text as query parameter, combine prompt and document
+      // Combine prompt and document, send as JSON in request body
       const fullText = `INSTRUCTIONS: ${systemPrompt}\n\nDOCUMENT:\n${documentText}`;
-      const encodedText = encodeURIComponent(fullText);
-      url = `https://phrase.runasp.net/api/Glossary/extract?text=${encodedText}`;
-      body = {};
-      extractFn = (d) => d.result;
+      url = `https://phrase.runasp.net/api/Glossary/extract`;
+      body = fullText; // Send as JSON string in request body
+      extractFn = (d) => {
+        // Handle both object response and plain text response
+        if (typeof d === 'string') return d;
+        if (d.result) return d.result;
+        return JSON.stringify(d);
+      };
     } else if (provider === 'openai') {
       // Routed through local proxy to bypass OpenAI CORS restriction
       const userMessage = `INSTRUCTIONS: ${systemPrompt}\n\nDOCUMENT:\n${documentText}`;
@@ -467,6 +471,10 @@ export class DocxTranslationService {
     }
 
     console.log('   📤 Sending POST request to:', url.substring(0, 80) + '...');
+    console.log('   📦 Provider:', provider.toUpperCase());
+    if (provider === 'anthropic') {
+      console.log('   📝 Body size:', JSON.stringify(body).length, 'chars');
+    }
     console.log('   ⏳ Waiting for AI response...');
     let response: Response;
     try {
