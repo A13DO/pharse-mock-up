@@ -7,6 +7,23 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = authService.getToken();
 
   console.log('🔑 Interceptor - Request URL:', req.url);
+
+  // Check if token is expired
+  if (authService.hasToken() && authService.isTokenExpired()) {
+    console.warn('🔑 Interceptor - Token has expired');
+    const expirationDate = authService.getTokenExpirationDate();
+    if (expirationDate) {
+      console.warn(
+        '🔑 Interceptor - Token expired at:',
+        expirationDate.toISOString(),
+      );
+    }
+  } else if (token) {
+    const timeRemaining = authService.getTokenTimeRemaining();
+    const minutes = Math.floor(timeRemaining / (1000 * 60));
+    console.log(`🔑 Interceptor - Token valid for ${minutes} minutes`);
+  }
+
   console.log('🔑 Interceptor - Token retrieved:', token);
   console.log('🔑 Interceptor - Token length:', token?.length);
 
