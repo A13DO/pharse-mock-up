@@ -3,13 +3,16 @@
 <div class="px-8 py-8 bg-white">
     <div class="max-w-6xl mx-auto">
         <!-- Loading State -->
-        <div *ngIf="loading" class="flex flex-col items-center justify-center p-12 gap-4">
+        @if (loading) {
+        <div class="flex flex-col items-center justify-center p-12 gap-4">
             <div class="w-10 h-10 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin"></div>
             <p class="text-gray-500 text-sm">Loading project details...</p>
         </div>
+        }
 
         <!-- Error State -->
-        <div *ngIf="error"
+        @if (error) {
+        <div
             class="bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-lg mb-6 flex justify-between items-center">
             <div>
                 <strong class="font-semibold">Error:</strong> {{ error }}
@@ -18,231 +21,244 @@
                 class="bg-transparent border-none text-2xl leading-none cursor-pointer text-red-800 p-0 w-6 h-6 hover:opacity-70"
                 (click)="error = null">×</button>
         </div>
+        }
 
         <!-- Main Content -->
-        <div *ngIf="project && !loading">
-            <!-- Back Button -->
-            <div class="mb-6">
-                <button routerLink="/projects"
-                    class="h-9 px-4 inline-flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors border border-slate-300 bg-white hover:bg-slate-50 hover:text-slate-900">
-                    <i class="pi pi-arrow-left text-xs"></i> Back to Projects
+        @if (project && !loading) {
+        <!-- Back Button -->
+        <div class="mb-6">
+            <button routerLink="/projects"
+                class="h-9 px-4 inline-flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors border border-slate-300 bg-white hover:bg-slate-50 hover:text-slate-900">
+                <i class="pi pi-arrow-left text-xs"></i> Back to Projects
+            </button>
+        </div>
+
+        <!-- Project Info Card -->
+        <div class="bg-white border border-[#e5e7eb] rounded-lg shadow-sm p-8 mb-12">
+            <!-- Two Column Layout -->
+            <div class="grid grid-cols-2 gap-24">
+                <!-- Left Column: Basic Info -->
+                <div class="space-y-6">
+                    <!-- ID -->
+                    <div class="flex items-center">
+                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">ID</label>
+                        <div class="text-[#111] font-semibold">{{ project.id }}</div>
+                    </div>
+
+                    <!-- Name -->
+                    <div class="flex items-center">
+                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Name</label>
+                        <div class="text-[#111] font-semibold">{{ project.name }}</div>
+                    </div>
+
+                    <!-- Created by -->
+                    <div class="flex items-center">
+                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Created by</label>
+                        <div class="text-[#111] font-semibold">
+                            {{ project.owner ? project.owner.userName : 'N/A' }}
+                        </div>
+                    </div>
+
+                    <!-- Created Date -->
+                    <div class="flex items-center">
+                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Created</label>
+                        <div class="text-[#111] font-semibold">{{ formatDate(project.dateCreated) }}</div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="flex items-center">
+                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Status</label>
+                        <div class="text-[#111] font-semibold">{{ project.status }}</div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Settings -->
+                <div class="space-y-6">
+                    <!-- Source Language -->
+                    <div class="flex items-center">
+                        <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">Source
+                            language</label>
+                        <span
+                            class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200">
+                            {{ project.sourceLang | uppercase }}
+                        </span>
+                    </div>
+
+                    <!-- Target Languages -->
+                    <div class="flex items-start mt-4">
+                        <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4 pt-1">Target
+                            languages</label>
+                        <div class="flex flex-wrap gap-1.5 max-w-md">
+                            @for (lang of project.targetLangs; track lang) {
+                            <span
+                                class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200">
+                                {{ lang | uppercase }}
+                            </span>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- AI/MT Service -->
+                    <div class="flex items-center">
+                        <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">AI/machine
+                            translation service</label>
+                        <div class="text-[#111] font-semibold">
+                            {{ project.mtSettingsPerLanguageList.length > 0 ? 'Phrase Language AI' : 'N/A' }}
+                        </div>
+                    </div>
+
+                    <!-- Owner -->
+                    <div class="flex items-center">
+                        <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">Owner</label>
+                        <div class="text-[#111] font-semibold">
+                            {{ project.owner ? project.owner.userName : 'N/A' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Jobs Section -->
+        <div class="mt-12">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-[#111]">Jobs</h2>
+                <button (click)="onAddJob()"
+                    class="h-9 mb-4 px-4 bg-slate-900 text-white rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-slate-800">
+                    <i class="pi pi-plus text-xs"></i> Add Job
                 </button>
             </div>
 
-            <!-- Project Info Card -->
-            <div class="bg-white border border-[#e5e7eb] rounded-lg shadow-sm p-8 mb-12">
-                <!-- Two Column Layout -->
-                <div class="grid grid-cols-2 gap-24">
-                    <!-- Left Column: Basic Info -->
-                    <div class="space-y-6">
-                        <!-- ID -->
-                        <div class="flex items-center">
-                            <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">ID</label>
-                            <div class="text-[#111] font-semibold">{{ project.id }}</div>
-                        </div>
-
-                        <!-- Name -->
-                        <div class="flex items-center">
-                            <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Name</label>
-                            <div class="text-[#111] font-semibold">{{ project.name }}</div>
-                        </div>
-
-                        <!-- Created by -->
-                        <div class="flex items-center">
-                            <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Created by</label>
-                            <div class="text-[#111] font-semibold">
-                                {{ project.owner ? project.owner.userName : 'N/A' }}
-                            </div>
-                        </div>
-
-                        <!-- Created Date -->
-                        <div class="flex items-center">
-                            <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Created</label>
-                            <div class="text-[#111] font-semibold">{{ formatDate(project.dateCreated) }}</div>
-                        </div>
-
-                        <!-- Status -->
-                        <div class="flex items-center">
-                            <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Status</label>
-                            <div class="text-[#111] font-semibold">{{ project.status }}</div>
-                        </div>
-                    </div>
-
-                    <!-- Right Column: Settings -->
-                    <div class="space-y-6">
-                        <!-- Source Language -->
-                        <div class="flex items-center">
-                            <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">Source
-                                language</label>
-                            <span
-                                class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200">
-                                {{ project.sourceLang | uppercase }}
-                            </span>
-                        </div>
-
-                        <!-- Target Languages -->
-                        <div class="flex items-start mt-4">
-                            <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4 pt-1">Target
-                                languages</label>
-                            <div class="flex flex-wrap gap-1.5 max-w-md">
-                                <span *ngFor="let lang of project.targetLangs"
-                                    class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200">
-                                    {{ lang | uppercase }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- AI/MT Service -->
-                        <div class="flex items-center">
-                            <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">AI/machine
-                                translation service</label>
-                            <div class="text-[#111] font-semibold">
-                                {{ project.mtSettingsPerLanguageList.length > 0 ? 'Phrase Language AI' : 'N/A' }}
-                            </div>
-                        </div>
-
-                        <!-- Owner -->
-                        <div class="flex items-center">
-                            <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">Owner</label>
-                            <div class="text-[#111] font-semibold">
-                                {{ project.owner ? project.owner.userName : 'N/A' }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <!-- Loading Jobs -->
+            @if (loadingJobs) {
+            <div class="flex items-center justify-center p-8">
+                <div class="w-8 h-8 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin"></div>
             </div>
+            }
 
-            <!-- Jobs Section -->
-            <div class="mt-12">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold text-[#111]">Jobs</h2>
-                    <button (click)="onAddJob()"
-                        class="h-9 mb-4 px-4 bg-slate-900 text-white rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-slate-800">
-                        <i class="pi pi-plus text-xs"></i> Add Job
-                    </button>
-                </div>
-
-                <!-- Loading Jobs -->
-                <div *ngIf="loadingJobs" class="flex items-center justify-center p-8">
-                    <div class="w-8 h-8 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                </div>
-
-                <!-- Jobs Table -->
-                <div *ngIf="!loadingJobs" class="bg-white border border-[#e5e7eb] rounded-lg shadow-sm">
-                    <div class="overflow-x-auto">
-                        <table class="w-full">
-                            <thead class="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                                        ID
-                                    </th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                                        Filename
-                                    </th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                                        Target Language
-                                    </th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                                        Created
-                                    </th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                                        Due Date
-                                    </th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-200">
-                                <tr *ngFor="let job of jobs" class="hover:bg-slate-50 transition-colors">
-                                    <td class="px-6 py-4 text-sm text-slate-900 font-medium">
-                                        {{ job.innerId }}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-slate-900">
-                                        <a [href]="'https://cloud.memsource.com/web/job/' + job.uid + '/translate'"
-                                            target="_blank"
-                                            class="text-indigo-600 hover:text-indigo-800 hover:underline font-medium">
-                                            {{ job.filename }}
-                                        </a>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
+            <!-- Jobs Table -->
+            @if (!loadingJobs) {
+            <div class="bg-white border border-[#e5e7eb] rounded-lg shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                    ID
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                    Filename
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                    Target Language
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                    Created
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                    Due Date
+                                </th>
+                                <th
+                                    class="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            @for (job of jobs; track job.uid) {
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-6 py-4 text-sm text-slate-900 font-medium">
+                                    {{ job.innerId }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-slate-900">
+                                    <a [href]="'https://cloud.memsource.com/web/job/' + job.uid + '/translate'"
+                                        target="_blank"
+                                        class="text-indigo-600 hover:text-indigo-800 hover:underline font-medium">
+                                        {{ job.filename }}
+                                    </a>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <span
+                                        class="inline-block px-2.5 py-1 rounded-full text-xs font-medium text-slate-700 bg-slate-100">
+                                        {{ job.targetLang | uppercase }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <div class="flex items-center gap-2">
                                         <span
-                                            class="inline-block px-2.5 py-1 rounded-full text-xs font-medium text-slate-700 bg-slate-100">
-                                            {{ job.targetLang | uppercase }}
+                                            [class]="'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' + getJobStatusBadgeClass(job.status)">
+                                            {{ job.status }}
                                         </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
-                                        <div class="flex items-center gap-2">
-                                            <span
-                                                [class]="'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' + getJobStatusBadgeClass(job.status)">
-                                                {{ job.status }}
-                                            </span>
-                                            <div class="relative">
-                                                <button #statusButton
-                                                    (click)="toggleStatusDropdown(job.uid, statusButton)"
-                                                    [disabled]="updatingStatus[job.uid]"
-                                                    class="h-6 w-6 inline-flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    title="Change status">
-                                                    <i
-                                                        [class]="updatingStatus[job.uid] ? 'pi pi-spin pi-spinner text-xs' : 'pi pi-pencil text-xs'"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-slate-600">
-                                        {{ formatDate(job.dateCreated) }}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-slate-600">
-                                        {{ job.dateDue ? formatDate(job.dateDue) : '-' }}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
-                                        <div class="flex items-center gap-2">
-                                            <button [routerLink]="['/translate', project.uid, job.uid]"
-                                                class="h-8 px-3 bg-indigo-600 text-white rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-indigo-700"
-                                                title="Translate with AI">
-                                                <i class="pi pi-language text-xs"></i>
-                                                Translate
-                                            </button>
-                                            <button (click)="downloadBilingualFile(job, 'DOCX')"
-                                                class="h-8 w-8 inline-flex items-center justify-center bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors"
-                                                title="Download bilingual file">
-                                                <i class="pi pi-download text-xs"></i>
+                                        <div class="relative">
+                                            <button #statusButton (click)="toggleStatusDropdown(job.uid, statusButton)"
+                                                [disabled]="updatingStatus[job.uid]"
+                                                class="h-6 w-6 inline-flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title="Change status">
+                                                <i
+                                                    [class]="updatingStatus[job.uid] ? 'pi pi-spin pi-spinner text-xs' : 'pi pi-pencil text-xs'"></i>
                                             </button>
                                         </div>
-                                    </td>
-                                </tr>
-                                <tr *ngIf="jobs.length === 0">
-                                    <td colspan="7" class="px-6 py-8 text-center text-slate-500">
-                                        No jobs found. Click "Add Job" to create one.
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-slate-600">
+                                    {{ formatDate(job.dateCreated) }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-slate-600">
+                                    {{ job.dateDue ? formatDate(job.dateDue) : '-' }}
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <div class="flex items-center gap-2">
+                                        <button (click)="downloadBilingualFile(job, 'DOCX')"
+                                            class="h-8 w-8 inline-flex items-center justify-center bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors"
+                                            title="Download bilingual file">
+                                            <i class="pi pi-download text-xs"></i>
+                                        </button>
+                                        @if (job.status !== 'COMPLETED') {
+                                        <button [routerLink]="['/translate', project.uid, job.uid]"
+                                            class="h-8 px-3 bg-indigo-600 text-white rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-indigo-700"
+                                            title="Translate with AI">
+                                            <i class="pi pi-language text-xs"></i>
+                                            Translate
+                                        </button>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                            }
+                            @if (jobs.length === 0) {
+                            <tr>
+                                <td colspan="7" class="px-6 py-8 text-center text-slate-500">
+                                    No jobs found. Click "Add Job" to create one.
+                                </td>
+                            </tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
+            }
+        </div>
 
-            <!-- Download Original File -->
-            <!-- <div *ngFor="let job of jobs">
+        <!-- Download Original File -->
+        <!-- @for (job of jobs; track job.uid) {
                 <app-job-file-download [projectUid]="project.uid" [jobUid]="job.uid" buttonText="Download Original">
                 </app-job-file-download>
-            </div> -->
-        </div>
+            } -->
+        }
     </div>
 </div>
 
 <!-- Status Dropdown (Portal - positioned outside table) -->
-<div *ngIf="currentOpenJobUid && statusDropdownOpen[currentOpenJobUid]">
+@if (currentOpenJobUid && statusDropdownOpen[currentOpenJobUid]) {
+<div>
     <!-- Backdrop -->
     <div (click)="closeStatusDropdown(currentOpenJobUid)" class="fixed inset-0 z-40"></div>
 
@@ -253,16 +269,19 @@
             <div class="px-3 py-2 text-xs font-semibold text-slate-500 uppercase border-b border-slate-100">
                 Change Status
             </div>
-            <button *ngFor="let status of jobStatuses"
-                (click)="updateJobStatus(getJobByUid(currentOpenJobUid)!, status)"
+            @for (status of jobStatuses; track status) {
+            <button (click)="updateJobStatus(getJobByUid(currentOpenJobUid)!, status)"
                 [disabled]="status === getJobByUid(currentOpenJobUid)?.status"
                 class="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-50">
                 <i [class]="'pi ' + getStatusIcon(status) + ' text-xs'"></i>
                 <span [class]="status === getJobByUid(currentOpenJobUid)?.status ? 'font-semibold' : ''">{{
                     status }}</span>
-                <i *ngIf="status === getJobByUid(currentOpenJobUid)?.status"
-                    class="pi pi-check text-xs ml-auto text-green-600"></i>
+                @if (status === getJobByUid(currentOpenJobUid)?.status) {
+                <i class="pi pi-check text-xs ml-auto text-green-600"></i>
+                }
             </button>
+            }
         </div>
     </div>
 </div>
+}
