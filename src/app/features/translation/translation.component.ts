@@ -2,7 +2,10 @@ import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { HeaderComponent } from '../../layout/header/header.component';
+import {
+  HeaderComponent,
+  BreadcrumbItem,
+} from '../../layout/header/header.component';
 import { PhraseApiService, Job } from '../../core/services/phrase-api.service';
 import {
   DocxTranslationService,
@@ -51,9 +54,32 @@ export class TranslationComponent implements OnInit {
   // Route params
   projectUid: string | null = null;
   jobUid: string | null = null;
-  job: Job | null = null;
+  job = signal<Job | null>(null);
+  projectName = signal<string>('');
   sourceLang: string = 'English';
   targetLang: string = 'Arabic';
+
+  // Breadcrumbs
+  breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const items: BreadcrumbItem[] = [{ label: 'Projects', link: '/projects' }];
+
+    if (this.projectUid && this.projectName()) {
+      items.push({
+        label: this.projectName(),
+        link: `/projects/${this.projectUid}`,
+      });
+    }
+
+    const currentJob = this.job();
+    if (currentJob?.filename) {
+      items.push({
+        label: currentJob.filename,
+        isCurrentPage: true,
+      });
+    }
+
+    return items;
+  });
 
   // Loading states
   loading = false;
@@ -373,8 +399,10 @@ Please confirm you understand these instructions, and I will begin sending the t
     if (!file || !isIdle) return false;
     if (needsApiKey && !apiKey) return false;
 
+    // Step 1: Can extract TermBase OR skip directly to translation
     if (step === 1) return true;
-    if (step === 2 && this.baseTermTable()) return true;
+    // Step 2: Can translate (with or without TermBase)
+    if (step === 2) return true;
 
     return false;
   });
@@ -449,16 +477,18 @@ Please confirm you understand these instructions, and I will begin sending the t
     this.phraseApi.getProject(this.projectUid).subscribe({
       next: (project) => {
         this.sourceLang = project.sourceLang || 'English';
+        this.projectName.set(project.name); // Store project name for breadcrumbs
         console.log('✅ Source language loaded:', this.sourceLang);
 
         // Then load job to get target language
         this.phraseApi.getJobs(this.projectUid!).subscribe({
           next: (response) => {
-            this.job =
+            const foundJob =
               response.content.find((j) => j.uid === this.jobUid) || null;
+            this.job.set(foundJob);
             this.loading = false;
-            if (this.job) {
-              this.targetLang = this.job.targetLang || 'Arabic';
+            if (foundJob) {
+              this.targetLang = foundJob.targetLang || 'Arabic';
               console.log('✅ Target language loaded:', this.targetLang);
               // Update prompts with job-specific information
               this.updatePromptsWithJobInfo();
@@ -548,7 +578,7 @@ Please confirm you understand these instructions, and I will begin sending the t
       }
 
       const baseName =
-        this.job?.filename?.replace(/\.[^.]+$/, '') || 'document';
+        this.job()?.filename?.replace(/\.[ ^.]+$/, '') || 'document';
       const fileName = `${baseName}_bilingual.mxlf`;
 
       const mimeType = blob.type || 'application/x-xliff+xml';
@@ -1061,6 +1091,26 @@ Please confirm you understand these instructions, and I will begin sending the t
     }
   }
 
+  skipToTranslation(): void {
+    // Skip TermBase extraction and go directly to Step 2 (translation)
+    console.log(
+      '⏭️ Skipping TermBase extraction, going directly to translation',
+    );
+    this.workflowStep.set(2);
+    this.errorMessage.set(null);
+    // Set customPrompt to default translation prompt without TermBase
+    const simplePrompt = this.defaultTranslationPrompt
+      .replace(
+        /## ⚠️ TERMINOLOGY COMPLIANCE[\s\S]*?\*\*REMINDER:[^\n]*\n\n/g,
+        '',
+      )
+      .replace(
+        /## 📋 MANDATORY TERMINOLOGY GLOSSARY[\s\S]*?\*\*REMINDER:[^\n]*\n\n/g,
+        '',
+      );
+    this.customPrompt.set(simplePrompt);
+  }
+
   previousStep(): void {
     if (this.workflowStep() > 1) {
       this.workflowStep.set(
@@ -1191,7 +1241,7 @@ Please confirm you understand these instructions, and I will begin sending the t
           setTimeout(() => {
             this.translatedBlob.set(modifiedBlob);
             // Use the job's original filename
-            const jobFilename = this.job?.filename || result.filename;
+            const jobFilename = this.job()?.filename || result.filename;
             this.translatedFilename.set(jobFilename);
             this.progressStep.set('complete');
             this.nextStep();
@@ -1204,7 +1254,7 @@ Please confirm you understand these instructions, and I will begin sending the t
         );
         this.translatedBlob.set(result.blob);
         // Use the job's original filename
-        const jobFilename = this.job?.filename || result.filename;
+        const jobFilename = this.job()?.filename || result.filename;
         this.translatedFilename.set(jobFilename);
         this.progressStep.set('complete');
         this.nextStep();
@@ -1384,13 +1434,7 @@ Please confirm you understand these instructions, and I will begin sending the t
     }
   }
 
-  goBack(): void {
-    if (this.projectUid) {
-      this.router.navigate(['/projects', this.projectUid]);
-    } else {
-      this.router.navigate(['/projects']);
-    }
-  }
+  // Removed goBack() method - using breadcrumbs in header instead
 
   private formatFileSize(bytes: number): string {
     if (bytes < 1024) return bytes + ' B';

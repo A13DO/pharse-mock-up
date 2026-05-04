@@ -1,4 +1,4 @@
-<app-header>{{ project?.name || 'Project Details' }}</app-header>
+<app-header [breadcrumbs]="breadcrumbs()"></app-header>
 
 <div class="px-8 py-8 bg-white">
     <div class="max-w-6xl mx-auto">
@@ -24,15 +24,7 @@
         }
 
         <!-- Main Content -->
-        @if (project && !loading) {
-        <!-- Back Button -->
-        <div class="mb-6">
-            <button routerLink="/projects"
-                class="h-9 px-4 inline-flex items-center gap-1.5 rounded-md text-sm font-medium transition-colors border border-slate-300 bg-white hover:bg-slate-50 hover:text-slate-900">
-                <i class="pi pi-arrow-left text-xs"></i> Back to Projects
-            </button>
-        </div>
-
+        @if (project() && !loading) {
         <!-- Project Info Card -->
         <div class="bg-white border border-[#e5e7eb] rounded-lg shadow-sm p-8 mb-12">
             <!-- Two Column Layout -->
@@ -42,33 +34,33 @@
                     <!-- ID -->
                     <div class="flex items-center">
                         <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">ID</label>
-                        <div class="text-[#111] font-semibold">{{ project.id }}</div>
+                        <div class="text-[#111] font-semibold">{{ project()?.id }}</div>
                     </div>
 
                     <!-- Name -->
                     <div class="flex items-center">
                         <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Name</label>
-                        <div class="text-[#111] font-semibold">{{ project.name }}</div>
+                        <div class="text-[#111] font-semibold">{{ project()?.name }}</div>
                     </div>
 
                     <!-- Created by -->
                     <div class="flex items-center">
                         <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Created by</label>
                         <div class="text-[#111] font-semibold">
-                            {{ project.owner ? project.owner.userName : 'N/A' }}
+                            {{ project()?.owner?.userName || 'N/A' }}
                         </div>
                     </div>
 
                     <!-- Created Date -->
                     <div class="flex items-center">
                         <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Created</label>
-                        <div class="text-[#111] font-semibold">{{ formatDate(project.dateCreated) }}</div>
+                        <div class="text-[#111] font-semibold">{{ formatDate(project()?.dateCreated || '') }}</div>
                     </div>
 
                     <!-- Status -->
                     <div class="flex items-center">
                         <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Status</label>
-                        <div class="text-[#111] font-semibold">{{ project.status }}</div>
+                        <div class="text-[#111] font-semibold">{{ project()?.status }}</div>
                     </div>
                 </div>
 
@@ -80,7 +72,7 @@
                             language</label>
                         <span
                             class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200">
-                            {{ project.sourceLang | uppercase }}
+                            {{ project()?.sourceLang | uppercase }}
                         </span>
                     </div>
 
@@ -89,7 +81,7 @@
                         <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4 pt-1">Target
                             languages</label>
                         <div class="flex flex-wrap gap-1.5 max-w-md">
-                            @for (lang of project.targetLangs; track lang) {
+                            @for (lang of project()?.targetLangs; track lang) {
                             <span
                                 class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200">
                                 {{ lang | uppercase }}
@@ -103,7 +95,7 @@
                         <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">AI/machine
                             translation service</label>
                         <div class="text-[#111] font-semibold">
-                            {{ project.mtSettingsPerLanguageList.length > 0 ? 'Phrase Language AI' : 'N/A' }}
+                            {{ (project()?.mtSettingsPerLanguageList?.length || 0) > 0 ? 'Phrase Language AI' : 'N/A' }}
                         </div>
                     </div>
 
@@ -111,7 +103,7 @@
                     <div class="flex items-center">
                         <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">Owner</label>
                         <div class="text-[#111] font-semibold">
-                            {{ project.owner ? project.owner.userName : 'N/A' }}
+                            {{ project()?.owner?.userName || 'N/A' }}
                         </div>
                     </div>
                 </div>
@@ -222,7 +214,7 @@
                                             <i class="pi pi-download text-xs"></i>
                                         </button>
                                         @if (job.status !== 'COMPLETED') {
-                                        <button [routerLink]="['/translate', project.uid, job.uid]"
+                                        <button [routerLink]="['/translate', project()?.uid, job.uid]"
                                             class="h-8 px-3 bg-indigo-600 text-white rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-indigo-700"
                                             title="Translate with AI">
                                             <i class="pi pi-language text-xs"></i>
@@ -249,7 +241,7 @@
 
         <!-- Download Original File -->
         <!-- @for (job of jobs; track job.uid) {
-                <app-job-file-download [projectUid]="project.uid" [jobUid]="job.uid" buttonText="Download Original">
+                <app-job-file-download [projectUid]="project()?.uid" [jobUid]="job.uid" buttonText="Download Original">
                 </app-job-file-download>
             } -->
         }

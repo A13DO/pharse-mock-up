@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import {
@@ -9,7 +9,10 @@ import {
   DataTableComponent,
   TableColumn,
 } from '../../../shared/components/data-table/data-table.component';
-import { HeaderComponent } from '../../../layout/header/header.component';
+import {
+  HeaderComponent,
+  BreadcrumbItem,
+} from '../../../layout/header/header.component';
 
 @Component({
   selector: 'app-projects-list',
@@ -25,6 +28,11 @@ export class ProjectsListComponent implements OnInit {
   projects: Project[] = [];
   loading = false;
   error: string | null = null;
+
+  // Breadcrumbs
+  breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    { label: 'Projects', isCurrentPage: true },
+  ]);
 
   columns: TableColumn[] = [
     // { key: 'uid', label: 'UID' },

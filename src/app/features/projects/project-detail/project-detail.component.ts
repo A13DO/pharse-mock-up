@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, computed, signal } from '@angular/core';
 import { CommonModule, formatDate } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
@@ -7,7 +7,10 @@ import {
   Job,
   JobStatus,
 } from '../../../core/services/phrase-api.service';
-import { HeaderComponent } from '../../../layout/header/header.component';
+import {
+  HeaderComponent,
+  BreadcrumbItem,
+} from '../../../layout/header/header.component';
 
 @Component({
   selector: 'app-project-detail',
@@ -21,11 +24,26 @@ export class ProjectDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
-  project: ProjectDetail | null = null;
+  project = signal<ProjectDetail | null>(null);
   jobs: Job[] = [];
   loading = false;
   loadingJobs = false;
   error: string | null = null;
+
+  // Breadcrumbs
+  breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const items: BreadcrumbItem[] = [{ label: 'Projects', link: '/projects' }];
+
+    const currentProject = this.project();
+    if (currentProject) {
+      items.push({
+        label: currentProject.name,
+        isCurrentPage: true,
+      });
+    }
+
+    return items;
+  });
 
   // Status dropdown state
   statusDropdownOpen: { [jobUid: string]: boolean } = {};
@@ -61,7 +79,7 @@ export class ProjectDetailComponent implements OnInit {
 
     this.phraseApi.getProject(projectUid).subscribe({
       next: (project) => {
-        this.project = project;
+        this.project.set(project);
         this.loading = false;
         this.loadJobs(projectUid);
       },
@@ -88,10 +106,14 @@ export class ProjectDetailComponent implements OnInit {
   }
 
   onAddJob(): void {
-    if (this.project?.uid) {
-      this.router.navigate(['/projects', this.project.uid, 'jobs', 'create'], {
-        queryParams: { projectUid: this.project.uid },
-      });
+    const currentProject = this.project();
+    if (currentProject?.uid) {
+      this.router.navigate(
+        ['/projects', currentProject.uid, 'jobs', 'create'],
+        {
+          queryParams: { projectUid: currentProject.uid },
+        },
+      );
     }
   }
 
@@ -153,14 +175,15 @@ export class ProjectDetailComponent implements OnInit {
     job: Job,
     format: 'MXLF' | 'DOCX' | 'XLIFF' | 'TMX' = 'MXLF',
   ): Promise<void> {
-    if (!this.project?.uid) {
+    const currentProject = this.project();
+    if (!currentProject?.uid) {
       console.error('Project UID not available');
       return;
     }
 
     try {
       const blob = await this.phraseApi.downloadBilingualFile(
-        this.project.uid,
+        currentProject.uid,
         [job.uid],
         format,
       );
@@ -250,7 +273,8 @@ export class ProjectDetailComponent implements OnInit {
   }
 
   async updateJobStatus(job: Job, newStatus: JobStatus): Promise<void> {
-    if (!this.project?.uid) {
+    const currentProject = this.project();
+    if (!currentProject?.uid) {
       console.error('Project UID not available');
       return;
     }
@@ -259,7 +283,7 @@ export class ProjectDetailComponent implements OnInit {
     this.error = null;
 
     this.phraseApi
-      .updateJobStatus(this.project.uid, [job.uid], newStatus)
+      .updateJobStatus(currentProject.uid, [job.uid], newStatus)
       .subscribe({
         next: () => {
           // Update local job status

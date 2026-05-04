@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -14,7 +14,10 @@ import {
   Language,
   ProjectTemplate,
 } from '../../../core/services/phrase-api.service';
-import { HeaderComponent } from '../../../layout/header/header.component';
+import {
+  HeaderComponent,
+  BreadcrumbItem,
+} from '../../../layout/header/header.component';
 import { Select } from 'primeng/select';
 import { MultiSelect } from 'primeng/multiselect';
 
@@ -39,6 +42,12 @@ export class ProjectCreateComponent implements OnInit {
   projectForm!: FormGroup;
   submitting = false;
   error: string | null = null;
+
+  // Breadcrumbs
+  breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    { label: 'Projects', link: '/projects' },
+    { label: 'Create New Project', isCurrentPage: true },
+  ]);
 
   languages: Language[] = [];
   loadingLanguages = false;

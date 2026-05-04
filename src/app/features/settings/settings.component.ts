@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   FormBuilder,
@@ -7,7 +7,10 @@ import {
   Validators,
 } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
-import { HeaderComponent } from '../../layout/header/header.component';
+import {
+  HeaderComponent,
+  BreadcrumbItem,
+} from '../../layout/header/header.component';
 
 @Component({
   selector: 'app-settings',
@@ -27,6 +30,11 @@ export class SettingsComponent implements OnInit {
   showGoogleKey = false;
   saveSuccess = false;
   aiSaveSuccess = false;
+
+  // Breadcrumbs
+  breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    { label: 'Settings', isCurrentPage: true },
+  ]);
 
   ngOnInit(): void {
     this.settingsForm = this.fb.group({

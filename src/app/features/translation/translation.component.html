@@ -1,15 +1,6 @@
-﻿<app-header>{{ job?.filename || 'AI Translation' }}</app-header>
+﻿<app-header [breadcrumbs]="breadcrumbs()"></app-header>
 
 <div class="translation-container">
-    <!-- Back Navigation -->
-    <div class="back-navigation">
-        <button (click)="goBack()" class="back-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M19 12H5M12 19l-7-7 7-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-            Back to Project
-        </button>
-    </div>
 
     <!-- Loading State -->
     @if (loading) {
@@ -49,15 +40,15 @@
         <div class="job-info-grid">
             <div class="info-item">
                 <span class="info-label">Filename</span>
-                <span class="info-value">{{ job?.filename || 'N/A' }}</span>
+                <span class="info-value">{{ (job())?.filename || 'N/A' }}</span>
             </div>
             <div class="info-item">
                 <span class="info-label">Target Language</span>
-                <span class="info-value">{{ job?.targetLang || 'N/A' }}</span>
+                <span class="info-value">{{ (job())?.targetLang || 'N/A' }}</span>
             </div>
             <div class="info-item">
                 <span class="info-label">Status</span>
-                <span class="info-value">{{ job?.status || 'NEW' }}</span>
+                <span class="info-value">{{ (job())?.status || 'NEW' }}</span>
             </div>
         </div>
     </div>
@@ -66,20 +57,20 @@
     <div class="workflow-steps">
         <div class="step" [class.active]="workflowStep() === 1" [class.completed]="workflowStep() > 1">
             <div class="step-number">1</div>
-            <div class="step-label">Extract TermBase</div>
+            <div class="step-label">Extract TermBase (Optional)</div>
             <div class="step-description">Extract terminology</div>
         </div>
         <div class="step-line" [class.completed]="workflowStep() > 1"></div>
         <div class="step" [class.active]="workflowStep() === 2" [class.completed]="workflowStep() > 2">
             <div class="step-number">2</div>
-            <div class="step-label">Translate with Reference</div>
+            <div class="step-label">Translate Document</div>
             <div class="step-description">Apply custom prompt</div>
         </div>
         <div class="step-line" [class.completed]="workflowStep() > 2"></div>
         <div class="step" [class.active]="workflowStep() === 3">
             <div class="step-number">3</div>
             <div class="step-label">Download Result</div>
-            <div class="step-description">Get bilingual DOCX</div>
+            <div class="step-description">Get bilingual file</div>
         </div>
     </div>
 
@@ -214,9 +205,10 @@
     <!-- STEP 1: Extract TermBase -->
     @if (workflowStep() === 1) {
     <div class="step-content step-1">
-        <h2 class="step-title">Step 1: Extract TermBase Table</h2>
-        <p class="step-description">The bilingual document will be analyzed to extract terminology. The system will
-            create a TermBase table with source terms and translations.</p>
+        <h2 class="step-title">Step 1: Extract TermBase (Optional)</h2>
+        <p class="step-description">The bilingual document can be analyzed to extract terminology. The system will
+            create a TermBase table with source terms and translations. Alternatively, you can skip this step and
+            translate directly.</p>
 
         <div class="step-1-info">
             <div class="info-box">
@@ -226,8 +218,8 @@
                     <line x1="12" y1="8" x2="12.01" y2="8" stroke-width="2" stroke-linecap="round" />
                 </svg>
                 <div>
-                    <strong>Ready to extract:</strong> The file has been loaded from Phrase TMS. Click "Extract
-                    TermBase" to analyze the document and create a terminology table.
+                    <strong>Two options available:</strong> Extract a TermBase table for consistent terminology, or skip
+                    directly to translation without terminology reference.
                 </div>
             </div>
         </div>
@@ -255,8 +247,13 @@
     @if (workflowStep() === 2) {
     <div class="step-content step-2">
         <h2 class="step-title">Step 2: Translate with Custom Prompt</h2>
+        @if (baseTermTable()) {
         <p class="step-description">The extracted TermBase table will be included in your translation prompt as a
             reference. Customize the prompt and run the translation.</p>
+        } @else {
+        <p class="step-description">Translate the document directly without TermBase reference. Customize the prompt and
+            run the translation.</p>
+        }
 
         <!-- TermBase Reference Display -->
         @if (baseTermTable()) {
@@ -600,6 +597,7 @@
 
     <!-- Action Buttons  [disabled]="!canTranslate()" -->
     @if (progressStep() === 'idle' && workflowStep() < 3) { <div class="action-section">
+        @if (workflowStep() === 1) {
         <button class="translate-btn" [style.--provider-color]="selectedProviderInfo()?.color" (click)="translate()">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M5 7h8M5 12h8M5 17h8M19 7v12" stroke-width="2" stroke-linecap="round"
@@ -607,12 +605,30 @@
                 <path d="M16 10l3-3 3 3M16 14l3 3 3-3" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round" />
             </svg>
-            {{ workflowStep() === 1 ? 'Extract TermBase' : 'Translate with Prompt' }}
+            Extract TermBase
         </button>
-        @if (workflowStep() === 2 && baseTermTable()) {
+        <button class="skip-btn" (click)="skipToTranslation()" [disabled]="isProcessing()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M5 4l10 8-10 8V4z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M19 5v14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            Skip TermBase & Translate Directly
+        </button>
+        } @else {
+        <button class="translate-btn" [style.--provider-color]="selectedProviderInfo()?.color" (click)="translate()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M5 7h8M5 12h8M5 17h8M19 7v12" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                <path d="M16 10l3-3 3 3M16 14l3 3 3-3" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+            </svg>
+            Translate with Prompt
+        </button>
+        @if (workflowStep() === 2) {
         <button class="previous-btn" (click)="previousStep()" [disabled]="isProcessing()">
             ← Back to Step 1
         </button>
+        }
         }
 </div>
 }

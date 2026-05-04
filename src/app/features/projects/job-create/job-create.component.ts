@@ -1,9 +1,12 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { PhraseApiService } from '../../../core/services/phrase-api.service';
-import { HeaderComponent } from '../../../layout/header/header.component';
+import {
+  HeaderComponent,
+  BreadcrumbItem,
+} from '../../../layout/header/header.component';
 import { FileUpload } from 'primeng/fileupload';
 import { MultiSelect } from 'primeng/multiselect';
 import { InputText } from 'primeng/inputtext';
@@ -39,9 +42,24 @@ export class JobCreateComponent implements OnInit {
   private router = inject(Router);
 
   projectUid: string = '';
+  projectName = signal<string>('');
   projectSourceLang: string = '';
   projectTargetLangs: string[] = [];
   loadingProject = false;
+
+  // Breadcrumbs
+  breadcrumbs = computed<BreadcrumbItem[]>(() => {
+    const items: BreadcrumbItem[] = [{ label: 'Projects', link: '/projects' }];
+
+    if (this.projectUid && this.projectName()) {
+      items.push({
+        label: this.projectName(),
+        isCurrentPage: true,
+      });
+    }
+
+    return items;
+  });
 
   form: CreateJobForm = {
     filename: '',
@@ -102,6 +120,7 @@ export class JobCreateComponent implements OnInit {
 
     this.phraseApi.getProject(this.projectUid).subscribe({
       next: (project) => {
+        this.projectName.set(project.name); // Store project name for breadcrumbs
         this.projectSourceLang = project.sourceLang;
         this.projectTargetLangs = project.targetLangs || [];
         // Pre-populate target languages in the form

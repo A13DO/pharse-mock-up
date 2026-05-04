@@ -1,7 +1,10 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HeaderComponent } from '../../layout/header/header.component';
+import {
+  HeaderComponent,
+  BreadcrumbItem,
+} from '../../layout/header/header.component';
 import {
   AllowedUsersService,
   AllowedUser,
@@ -21,6 +24,11 @@ export class AllowedUsersComponent implements OnInit {
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+
+  // Breadcrumbs
+  breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    { label: 'Allowed Users', isCurrentPage: true },
+  ]);
 
   // Add user form
   newUserEmail = signal('');
