@@ -948,9 +948,16 @@ Please confirm you understand these instructions, and I will begin sending the t
         );
       });
 
-      throw new Error(
-        `AI did not translate all segments. Expected ${translatableSegments.length} translations but received ${translations.length}. ` +
-          `${missing} segments are missing. Please check the AI response and try again.`,
+      console.warn(
+        `   ⚠️  Continuing with partial translation. ${translations.length} out of ${translatableSegments.length} segments will be translated.`,
+      );
+      console.warn(
+        `   💡 TIP: You can re-translate untranslated segments later or upload the file with partial translations.`,
+      );
+
+      // Show warning in UI without blocking the process
+      this.errorMessage.set(
+        `⚠️ Warning: ${missing} segments were not translated by the AI. The file will contain ${translations.length} translated segments. You can proceed with the partial translation or try again.`,
       );
     } else if (translations.length > translatableSegments.length) {
       console.warn(
