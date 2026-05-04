@@ -1,7 +1,7 @@
 <!-- Table -->
 <div class="bg-white border border-[#e5e7eb] rounded-lg shadow-sm overflow-hidden">
     <div class="overflow-x-auto max-h-[calc(100vh-300px)]">
-        <p-table #dt [value]="tableData" [responsiveLayout]="'scroll'" [loading]="loading" styleClass="w-full">
+        <p-table #dt [value]="loading ? skeletonRows : tableData" [responsiveLayout]="'scroll'" styleClass="w-full">
             <ng-template pTemplate="header">
                 <tr class="bg-slate-50 border-b border-slate-200">
                     <!-- <th class="px-6 py-3">
@@ -26,13 +26,18 @@
             </ng-template>
 
             <ng-template pTemplate="body" let-row let-rowIndex="rowIndex">
-                <tr [class]="rowIndex % 2 === 0 ? 'bg-white hover:bg-slate-100' : 'hover:bg-slate-100 transition-colors border-b border-slate-200 last:border-0'"
+                @if (loading) {
+                <tr [class]="rowIndex % 2 === 0 ? 'bg-white' : ''"
+                    [style.background-color]="rowIndex % 2 === 0 ? 'white' : '#f3f3f3'"
+                    class="border-b border-slate-200 last:border-0">
+                    <td *ngFor="let col of columns" class="px-6 py-4">
+                        <p-skeleton height="1rem" styleClass="mb-2" />
+                    </td>
+                </tr>
+                } @else {
+                <tr [class]="rowIndex % 2 === 0 ? 'bg-white hover:bg-slate-100' : 'hover:bg-slate-100 transition-colors'"
                     [style.background-color]="rowIndex % 2 === 0 ? 'white' : '#f3f3f3'"
                     class="transition-colors border-b border-slate-200 last:border-0">
-                    <!-- <td class="px-6 py-4" (click)="$event.stopPropagation()">
-                        <p-tableCheckbox [value]="row"></p-tableCheckbox>
-                    </td> -->
-
                     <td *ngFor="let col of columns" class="px-6 py-4 text-sm text-slate-900">
                         @switch (getFieldName(col)) {
                         @case('actions') {
@@ -52,6 +57,7 @@
                         } }
                     </td>
                 </tr>
+                }
             </ng-template>
 
             <ng-template pTemplate="emptymessage">

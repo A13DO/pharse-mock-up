@@ -1,9 +1,17 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnChanges,
+  SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TableModule } from 'primeng/table';
 import { PaginatorModule, PaginatorState } from 'primeng/paginator';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
+import { SkeletonModule } from 'primeng/skeleton';
 
 export interface TableColumn {
   field?: string;
@@ -23,11 +31,12 @@ export interface TableColumn {
     PaginatorModule,
     ButtonModule,
     CheckboxModule,
+    SkeletonModule,
   ],
   templateUrl: './data-table.component.html',
   styleUrl: './data-table.component.scss',
 })
-export class DataTableComponent {
+export class DataTableComponent implements OnChanges {
   @Input() columns: TableColumn[] = [];
   @Input() tableData: any[] = [];
   @Input() loading = false;
@@ -37,6 +46,16 @@ export class DataTableComponent {
   @Output() viewRow = new EventEmitter<any>();
 
   selectedRows: any[] = [];
+  skeletonRows: any[] = [];
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['loading'] && this.loading) {
+      // Generate skeleton rows when loading starts
+      this.skeletonRows = Array.from({ length: 15 }).map((_, i) => ({
+        id: `skeleton-${i}`,
+      }));
+    }
+  }
 
   getFieldName(column: TableColumn): string {
     return column.field || column.key || '';
@@ -67,9 +86,9 @@ export class DataTableComponent {
 
   getStatusBadgeClass(status: string): string {
     if (!status) return 'bg-gray-100 text-gray-700';
-    
+
     const statusLower = status.toLowerCase();
-    
+
     switch (statusLower) {
       case 'completed':
         return 'bg-green-100 text-green-700';
