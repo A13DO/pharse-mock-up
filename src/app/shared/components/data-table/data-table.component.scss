@@ -1,11 +1,18 @@
 /* Override PrimeNG table defaults */
 :host ::ng-deep {
+  .p-datatable-table-container {
+    overflow: visible !important;
+  }
   .p-datatable {
     border: none;
-
+    .p-datatable-thead {
+      z-index: 20;
+      height: 45px;
+    }
     .p-datatable-thead > tr > th {
-      background: rgb(248 250 252);
+      background: #f3f3f3;
       border: none;
+      opacity: 1;
       // padding: 0;
     }
 

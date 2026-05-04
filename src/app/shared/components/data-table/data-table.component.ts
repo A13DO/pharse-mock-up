@@ -64,4 +64,28 @@ export class DataTableComponent {
   private getNestedValue(obj: any, path: string): any {
     return path.split('.').reduce((current, prop) => current?.[prop], obj);
   }
+
+  getStatusBadgeClass(status: string): string {
+    if (!status) return 'bg-gray-100 text-gray-700';
+    
+    const statusLower = status.toLowerCase();
+    
+    switch (statusLower) {
+      case 'completed':
+        return 'bg-green-100 text-green-700';
+      case 'in_progress':
+      case 'in progress':
+        return 'bg-blue-100 text-blue-700';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-700';
+      case 'failed':
+        return 'bg-red-100 text-red-700';
+      case 'active':
+        return 'bg-emerald-100 text-emerald-700';
+      case 'inactive':
+        return 'bg-slate-100 text-slate-700';
+      default:
+        return 'bg-slate-100 text-slate-700';
+    }
+  }
 }
