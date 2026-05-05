@@ -4,10 +4,17 @@ import { CommonModule } from '@angular/common';
 import { SidebarComponent } from './layout/sidebar/sidebar.component';
 import { HlmButtonImports } from '@spartan-ng/helm/button';
 import { AuthService } from './core/services/auth.service';
+import { HlmSidebarWrapper } from '@spartan-ng/helm/sidebar';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, RouterOutlet, SidebarComponent, HlmButtonImports],
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    SidebarComponent,
+    HlmButtonImports,
+    HlmSidebarWrapper,
+  ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })

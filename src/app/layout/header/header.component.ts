@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import {
@@ -9,7 +9,7 @@ import {
   HlmBreadcrumbPage,
   HlmBreadcrumbSeparator,
 } from '@spartan-ng/helm/breadcrumb';
-import { HlmSidebarTrigger } from '@spartan-ng/helm/sidebar';
+import { HlmSidebarTrigger, HlmSidebarService } from '@spartan-ng/helm/sidebar';
 
 export interface BreadcrumbItem {
   label: string;
@@ -35,6 +35,12 @@ export interface BreadcrumbItem {
   styleUrl: './header.component.scss',
 })
 export class HeaderComponent {
+  private sidebarService = inject(HlmSidebarService);
+
   currentDate = new Date();
   breadcrumbs = input<BreadcrumbItem[]>([]);
+
+  isSidebarCollapsed = computed(
+    () => this.sidebarService.state() === 'collapsed',
+  );
 }

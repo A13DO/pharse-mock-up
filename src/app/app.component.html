@@ -1,9 +1,14 @@
-<div class="flex min-h-screen bg-gray-50 overflow-x-hidden">
-  @if (isLoggedIn) {
+@if (isLoggedIn) {
+<div hlmSidebarWrapper class="min-h-screen bg-gray-50">
   <app-sidebar></app-sidebar>
-  }
-  <!-- lg:ml-64 -->
   <main class="flex-1 min-h-screen overflow-x-auto w-full min-w-0">
     <router-outlet></router-outlet>
   </main>
 </div>
+} @else {
+<div class="flex min-h-screen bg-gray-50 overflow-x-hidden">
+  <main class="flex-1 min-h-screen overflow-x-auto w-full min-w-0">
+    <router-outlet></router-outlet>
+  </main>
+</div>
+}

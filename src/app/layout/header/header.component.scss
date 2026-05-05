@@ -1,1 +1,37 @@
-/* Styles handled by Tailwind CSS */
+/* Header positioning to work with Spartan UI Sidebar */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  margin-left: 16rem;
+  z-index: 40;
+  border-bottom: 1px solid rgb(229, 231, 235);
+  padding: 1rem 1rem;
+  backdrop-filter: blur(12px);
+  background-color: rgba(255, 255, 255, 0.95);
+  overflow-x: hidden;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  @media (min-width: 768px) {
+    padding: 1.25rem 1.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    padding: 1.5rem 2rem;
+  }
+
+  /* Mobile: sidebar is hidden, header takes full width with no margin */
+  @media (max-width: 767px) {
+    margin-left: 0;
+  }
+
+  /* When sidebar is collapsed - remove margin */
+  &.sidebar-collapsed {
+    margin-left: 0;
+
+    @media (max-width: 767px) {
+      margin-left: 0;
+    }
+  }
+}
