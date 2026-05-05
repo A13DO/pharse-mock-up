@@ -264,48 +264,23 @@ export class DocxTranslationService {
   }
 
   /**
-   * Classify a segment based on its content and lock status
+   * Classify a segment based on its content
    *
    * Classification rules:
-   * - locked=true → 'skip' (already translated, don't touch)
    * - empty → 'skip' (nothing to translate)
    * - pure numbers → 'copy-source' (123, 1234, etc.)
-   * - EVERYTHING ELSE → 'translate' (single characters like "p", words, sentences, mixed content, formatted numbers, etc.)
+   * - EVERYTHING ELSE → 'translate' (single characters like "p", words, sentences, mixed content, formatted numbers, locked segments, etc.)
    */
   private classifySegment(sourceText: string, isLocked: boolean): SegmentKind {
-    // Rule 1: Locked segments (already translated) → skip
-    if (isLocked) {
-      console.log(`   🔒 SKIP (locked): "${sourceText.substring(0, 50)}"`);
-      return 'skip';
-    }
-
     const trimmed = sourceText.trim();
 
-    // Rule 2: Empty segments → skip
-    if (!trimmed) {
-      console.log(`   ⭕ SKIP (empty)`);
-      return 'skip';
-    }
+    // Rule 1: Empty segments → skip
+    if (!trimmed) return 'skip';
 
-    // Rule 3: Pure integer numbers only → copy-source
-    // Examples that match: "123", "0", "999999"
-    // Examples that DON'T match and WILL be translated: "1.5", "1,234", "50%", "Item 123", "{1}", "p", "A"
-    if (/^\d+$/.test(trimmed)) {
-      console.log(`   🔢 COPY-SOURCE (pure number): "${trimmed}"`);
-      return 'copy-source';
-    }
+    // Rule 2: Pure integer numbers only → copy-source
+    if (/^\d+$/.test(trimmed)) return 'copy-source';
 
-    // Rule 4: EVERYTHING ELSE → translate
-    // This includes: single characters ("p", "A"), words, sentences, mixed content, formatted numbers, decimals, etc.
-    const lengthNote =
-      trimmed.length === 1
-        ? ' (single character)'
-        : trimmed.length <= 3
-          ? ' (short)'
-          : '';
-    console.log(
-      `   ✅ TRANSLATE${lengthNote}: "${trimmed.substring(0, 50)}${trimmed.length > 50 ? '...' : ''}"`,
-    );
+    // Rule 3: EVERYTHING ELSE → translate
     return 'translate';
   }
 
@@ -324,22 +299,10 @@ export class DocxTranslationService {
     this.originalBuffer = arrayBuffer;
 
     const segments = await this.extractSegmentsFromMxliff();
-    const toTranslate = segments.filter((s) => s.kind === 'translate');
+    // Send ALL segments to AI (translate + copy-source), skip only empty ones
+    const toTranslate = segments.filter((s) => s.kind !== 'skip');
 
-    console.log(`\n📤 ============ PREPARING TEXT FOR AI ============`);
-    console.log(`   📊 Total segments to translate: ${toTranslate.length}`);
-    console.log(`   📋 Format: Cell-numbered segments`);
-
-    // Show sample of what's being sent
-    if (toTranslate.length > 0) {
-      console.log(`   📄 First 3 segments being sent:`);
-      toTranslate.slice(0, 3).forEach((s, idx) => {
-        const preview = s.sourceText.substring(0, 60);
-        console.log(
-          `      Cell #${idx + 1}: "${preview}${s.sourceText.length > 60 ? '...' : ''}"`,
-        );
-      });
-    }
+    console.log(`\n📤 Preparing ${toTranslate.length} segments for AI...\n`);
 
     // Format each segment with cell number for the AI
     const formattedSegments = toTranslate.map((s, idx) => {
@@ -348,11 +311,6 @@ export class DocxTranslationService {
     });
 
     const result = formattedSegments.join('\n\n');
-
-    console.log(`   ✅ Text prepared (${result.length} characters)`);
-    console.log(
-      `   ⚠️  AI MUST return exactly ${toTranslate.length} translations in table format\n`,
-    );
 
     return result;
   }
@@ -983,10 +941,6 @@ export class DocxTranslationService {
   async extractSegmentsFromMxliff(): Promise<Segment[]> {
     if (!this.originalBuffer) throw new Error('Original MXLIFF buffer not set');
 
-    console.log(
-      '\n🔍 ============ EXTRACTING & CLASSIFYING SEGMENTS ============',
-    );
-
     const decoder = new TextDecoder('utf-8');
     const xmlText = decoder.decode(this.originalBuffer);
     const parser = new DOMParser();
@@ -1023,43 +977,9 @@ export class DocxTranslationService {
     ).length;
     const skipCount = segments.filter((s) => s.kind === 'skip').length;
 
-    console.log(`\n📊 ============ CLASSIFICATION SUMMARY ============`);
-    console.log(`   📝 Total segments: ${segments.length}`);
-    console.log(`   ✅ TRANSLATE (will be sent to AI): ${translateCount}`);
-    console.log(`   🔢 COPY-SOURCE (pure numbers): ${copySourceCount}`);
-    console.log(`   🔒 SKIP (locked/empty): ${skipCount}`);
-    console.log(`   ════════════════════════════════════════════════`);
     console.log(
-      `   🎯 Segments that will get target text: ${translateCount + copySourceCount}`,
+      `\n📊 Extracted ${segments.length} segments (${translateCount} translate, ${copySourceCount} numbers, ${skipCount} empty)\n`,
     );
-    console.log(
-      `   ⚠️  Note: 'SKIP' segments already have translations and won't be modified`,
-    );
-    console.log(`\n`);
-
-    // Show examples of each type
-    const translateExamples = segments
-      .filter((s) => s.kind === 'translate')
-      .slice(0, 3);
-    const copySourceExamples = segments
-      .filter((s) => s.kind === 'copy-source')
-      .slice(0, 3);
-
-    if (translateExamples.length > 0) {
-      console.log(`   📝 Example TRANSLATE segments:`);
-      translateExamples.forEach((s) => {
-        console.log(
-          `      "${s.sourceText.substring(0, 80)}${s.sourceText.length > 80 ? '...' : ''}"`,
-        );
-      });
-    }
-
-    if (copySourceExamples.length > 0) {
-      console.log(`   🔢 Example COPY-SOURCE segments:`);
-      copySourceExamples.forEach((s) => {
-        console.log(`      "${s.sourceText}"`);
-      });
-    }
 
     return segments;
   }
@@ -1089,38 +1009,22 @@ export class DocxTranslationService {
       translations.map((t) => [t.segmentId, t.targetText]),
     );
 
-    // Map of copy-source segments (pure numbers → keep as-is)
-    const allSegments = await this.extractSegmentsFromMxliff();
-    const copySourceMap = new Map(
-      allSegments
-        .filter((s) => s.kind === 'copy-source')
-        .map((s) => [s.id, s.sourceText]),
-    );
-
     const transUnits = xmlDoc.querySelectorAll('trans-unit');
     let aiTranslatedCount = 0;
-    let copiedNumbersCount = 0;
-    let skippedCount = 0;
+    let notFoundCount = 0;
 
     transUnits.forEach((transUnit) => {
       const id = transUnit.getAttribute('id');
       if (!id) return;
 
-      let targetText: string | undefined;
-      let action: 'AI' | 'COPY' | 'SKIP' = 'SKIP';
-
-      if (translationMap.has(id)) {
-        targetText = translationMap.get(id)!;
-        action = 'AI';
-        aiTranslatedCount++;
-      } else if (copySourceMap.has(id)) {
-        targetText = copySourceMap.get(id)!;
-        action = 'COPY';
-        copiedNumbersCount++;
-      } else {
-        skippedCount++;
-        return; // skip — leave target untouched (locked segments)
+      // Check if we have a translation from AI
+      if (!translationMap.has(id)) {
+        notFoundCount++;
+        return;
       }
+
+      const targetText = translationMap.get(id)!;
+      aiTranslatedCount++;
 
       let targetElement = transUnit.querySelector(':scope > target');
       if (!targetElement) {
@@ -1138,15 +1042,9 @@ export class DocxTranslationService {
     });
 
     console.log(`\n📊 ============ INJECTION SUMMARY ============`);
-    console.log(`   ✅ AI Translated: ${aiTranslatedCount} segments`);
-    console.log(`   🔢 Copied Numbers: ${copiedNumbersCount} segments`);
-    console.log(`   🔒 Skipped (locked): ${skippedCount} segments`);
-    console.log(`   ════════════════════════════════════════════`);
+    console.log(`   ✅ Translated: ${aiTranslatedCount} segments`);
     console.log(
-      `   🎯 Total segments updated: ${aiTranslatedCount + copiedNumbersCount}`,
-    );
-    console.log(
-      `   ✅ Coverage: ${(((aiTranslatedCount + copiedNumbersCount) / transUnits.length) * 100).toFixed(1)}% of all segments`,
+      `   ✅ Coverage: ${((aiTranslatedCount / transUnits.length) * 100).toFixed(1)}%`,
     );
     console.log(`\n`);
 

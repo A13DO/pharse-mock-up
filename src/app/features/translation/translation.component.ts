@@ -860,9 +860,12 @@ Please confirm you understand these instructions, and I will begin sending the t
     const allSegments = this.segmentIdMap();
     const translations: { segmentId: string; targetText: string }[] = [];
 
-    // Only translate-kind segments were sent to AI, so cell #1 = first translate segment
-    const translatableSegments = allSegments.filter(
-      (s) => s.kind === 'translate',
+    // Since we now send ALL non-empty segments to the AI (not just 'translate' kind),
+    // we need to map against ALL segments except 'skip' (empty ones)
+    const sentToAI = allSegments.filter((s) => s.kind !== 'skip');
+
+    console.log(
+      `\n🔍 Mapping ${tableData.rows.length} translations to ${sentToAI.length} segments...\n`,
     );
 
     const cellNumIndex = tableData.headers.findIndex(
@@ -895,49 +898,22 @@ Please confirm you understand these instructions, and I will begin sending the t
 
     if (cellNumIndex === -1 || translationIndex === -1) {
       console.warn('⚠️ Could not find Cell # or Translation columns');
-      console.warn('⚠️ Headers found:', tableData.headers);
       return translations;
-    }
-
-    console.log('✅ Table headers detected:');
-    console.log(`   Column 0: "${tableData.headers[cellNumIndex]}" (Cell #)`);
-    console.log(`   Column 1: "${tableData.headers[1]}" (Source)`);
-    console.log(
-      `   Column 2: "${tableData.headers[translationIndex]}" (Translation)`,
-    );
-    if (tableData.headers[translationIndex] !== 'Translation') {
-      console.warn(
-        `   ⚠️ WARNING: Translation column header is "${tableData.headers[translationIndex]}" instead of "Translation"`,
-      );
-      console.warn(
-        `   ⚠️ The AI translated the column name. This should remain as "Translation" in English.`,
-      );
     }
 
     tableData.rows.forEach((row, rowIndex) => {
       const cellNumStr = row[cellNumIndex];
       const translation = row[translationIndex];
 
-      if (!cellNumStr || !translation) return;
+      // Skip only if both are missing
+      if (!cellNumStr && !translation) return;
 
       const cellNum = parseInt(cellNumStr, 10);
-      if (isNaN(cellNum)) {
-        console.warn(`⚠️ Invalid cell number: "${cellNumStr}"`);
-        return;
-      }
+      if (isNaN(cellNum)) return;
 
-      // Cell #1 = index 0 in translatableSegments only
-      const segment = translatableSegments[cellNum - 1];
-      if (!segment) {
-        console.warn(`⚠️ No translatable segment for cell #${cellNum}`);
-        return;
-      }
-
-      if (rowIndex < 3) {
-        console.log(
-          `   ✓ Cell #${cellNum} → [${segment.id.substring(0, 20)}...] "${translation.substring(0, 60)}..."`,
-        );
-      }
+      // Cell #1 = index 0 in sentToAI segments
+      const segment = sentToAI[cellNum - 1];
+      if (!segment) return;
 
       translations.push({
         segmentId: segment.id,
@@ -945,64 +921,8 @@ Please confirm you understand these instructions, and I will begin sending the t
       });
     });
 
-    // ✅ VALIDATION: Ensure 100% coverage
     console.log(
-      '\n🔍 ============ TRANSLATION COVERAGE VALIDATION ============',
-    );
-    console.log(`   📊 Expected translations: ${translatableSegments.length}`);
-    console.log(`   📊 Received translations: ${translations.length}`);
-
-    const coveragePercent = (
-      (translations.length / translatableSegments.length) *
-      100
-    ).toFixed(1);
-    console.log(`   📊 Coverage: ${coveragePercent}%`);
-
-    if (translations.length < translatableSegments.length) {
-      const missing = translatableSegments.length - translations.length;
-      console.warn(
-        `   ⚠️  WARNING: ${missing} segments are MISSING translations!`,
-      );
-      console.warn(`   ⚠️  Some content will NOT be translated!`);
-
-      // Find which cells are missing
-      const receivedCells = new Set(translations.map((t) => t.segmentId));
-      const missingSegments = translatableSegments.filter(
-        (s) => !receivedCells.has(s.id),
-      );
-
-      console.warn(`   ⚠️  Missing segments (first 5):`);
-      missingSegments.slice(0, 5).forEach((s) => {
-        console.warn(
-          `      Cell #${s.segNum + 1}: "${s.sourceText.substring(0, 50)}..."`,
-        );
-      });
-
-      console.warn(
-        `   ⚠️  Continuing with partial translation. ${translations.length} out of ${translatableSegments.length} segments will be translated.`,
-      );
-      console.warn(
-        `   💡 TIP: You can re-translate untranslated segments later or upload the file with partial translations.`,
-      );
-
-      // Show warning in UI without blocking the process
-      this.errorMessage.set(
-        `⚠️ Warning: ${missing} segments were not translated by the AI. The file will contain ${translations.length} translated segments. You can proceed with the partial translation or try again.`,
-      );
-    } else if (translations.length > translatableSegments.length) {
-      console.warn(
-        `   ⚠️  WARNING: AI returned MORE translations than expected!`,
-      );
-      console.warn(`   ⚠️  Extra translations will be ignored.`);
-    } else {
-      console.log(
-        `   ✅ PERFECT: All ${translatableSegments.length} segments have translations!`,
-      );
-    }
-    console.log(`═════════════════════════════════════════════════════════\n`);
-
-    console.log(
-      `✅ Built ${translations.length} translations from ${tableData.rows.length} table rows`,
+      `✅ Mapped ${translations.length}/${sentToAI.length} translations (${((translations.length / sentToAI.length) * 100).toFixed(1)}%)\n`,
     );
     return translations;
   }
