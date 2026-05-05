@@ -11,7 +11,7 @@
                         @if (!isLast && breadcrumb.link) {
                         <a hlmBreadcrumbLink [link]="breadcrumb.link">{{ breadcrumb.label }}</a>
                         } @else {
-                        <span hlmBreadcrumbPage>{{ breadcrumb.label }}</span>
+                        <span hlmBreadcrumbPage  class="font-medium">{{ breadcrumb.label }}</span>
                         }
                     </li>
                     @if (!isLast) {

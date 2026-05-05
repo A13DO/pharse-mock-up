@@ -16,6 +16,42 @@
     0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
+// Workflow step indicator styles
+.step-number {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #e5e7eb;
+  color: #6b7280;
+  transition: all 0.3s ease;
+
+  &.active {
+    background-color: #3b82f6;
+    color: white;
+  }
+
+  &.completed {
+    background-color: #10b981;
+    color: white;
+  }
+}
+
+.step-line {
+  width: 4rem;
+  height: 1px;
+  background-color: #e5e7eb;
+  transition: background-color 0.3s ease;
+
+  &.completed {
+    background-color: #10b981;
+  }
+}
+
 .translation-container {
   min-height: 100vh;
   background: var(--bg-primary);

@@ -12,90 +12,89 @@
 
     <!-- Main Content -->
     @if (!loading) {
-    <div class="header">
-        <h1 class="title">AI Document Translation</h1>
-        <p class="subtitle">3-Step Translation Process with TermBase Extraction</p>
+    <div class="mb-4">
+        <h1 class="text-xl font-semibold text-gray-800 mb-1">AI Document Translation</h1>
+        <p class="text-sm text-gray-500">3-Step Translation Process with TermBase Extraction</p>
     </div>
 
     <!-- Job Info -->
-    <div class="job-info-card">
-        <div class="job-info-header">
-            <h3>Document Information</h3>
-            @if (isDownloadingFile) {
-            <span class="status-badge downloading">
-                <div class="spinner-sm"></div>
-                Downloading file...
-            </span>
-            }
-            @else if (originalFile) {
-            <span class="status-badge ready">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke-width="2" stroke-linecap="round" />
-                    <path d="M22 4L12 14.01l-3-3" stroke-width="2" stroke-linecap="round" />
-                </svg>
-                File ready
-            </span>
-            }
+    <div class="flex items-center gap-6 text-sm py-2 px-4 bg-gray-50 border border-gray-200 rounded-lg mb-4">
+        <div class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-wide text-gray-500">Filename:</span>
+            <span class="font-medium text-gray-800">{{ (job())?.filename || 'N/A' }}</span>
         </div>
-        <div class="job-info-grid">
-            <div class="info-item">
-                <span class="info-label">Filename</span>
-                <span class="info-value">{{ (job())?.filename || 'N/A' }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Target Language</span>
-                <span class="info-value">{{ (job())?.targetLang || 'N/A' }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Status</span>
-                <span class="info-value">{{ (job())?.status || 'NEW' }}</span>
-            </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-wide text-gray-500">Target:</span>
+            <span class="font-medium text-gray-800">{{ (job())?.targetLang || 'N/A' }}</span>
         </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs uppercase tracking-wide text-gray-500">Status:</span>
+            <span class="font-medium text-gray-800">{{ (job())?.status || 'NEW' }}</span>
+        </div>
+        @if (isDownloadingFile) {
+        <div class="ml-auto flex items-center gap-2 text-blue-600">
+            <div class="spinner-sm"></div>
+            <span class="text-xs">Downloading...</span>
+        </div>
+        }
+        @else if (originalFile) {
+        <div class="ml-auto flex items-center gap-1 text-green-600">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" stroke-width="2" stroke-linecap="round" />
+                <path d="M22 4L12 14.01l-3-3" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            <span class="text-xs">Ready</span>
+        </div>
+        }
     </div>
 
     <!-- Workflow Step Indicator -->
-    <div class="workflow-steps">
-        <div class="step" [class.active]="workflowStep() === 1" [class.completed]="workflowStep() > 1">
-            <div class="step-number">1</div>
-            <div class="step-label">Extract TermBase (Optional)</div>
-            <div class="step-description">Extract terminology</div>
+    <div class="flex items-center justify-center gap-2 mb-5">
+        <div class="flex flex-col items-center gap-1">
+            <div class="step-number" [class.active]="workflowStep() === 1" [class.completed]="workflowStep() > 1">1
+            </div>
+            <div class="text-xs font-medium text-gray-700">Extract TermBase</div>
+            <div class="text-xs text-gray-500">Optional</div>
         </div>
         <div class="step-line" [class.completed]="workflowStep() > 1"></div>
-        <div class="step" [class.active]="workflowStep() === 2" [class.completed]="workflowStep() > 2">
-            <div class="step-number">2</div>
-            <div class="step-label">Translate Document</div>
-            <div class="step-description">Apply custom prompt</div>
+        <div class="flex flex-col items-center gap-1">
+            <div class="step-number" [class.active]="workflowStep() === 2" [class.completed]="workflowStep() > 2">2
+            </div>
+            <div class="text-xs font-medium text-gray-700">Translate</div>
+            <div class="text-xs text-gray-500">Custom prompt</div>
         </div>
         <div class="step-line" [class.completed]="workflowStep() > 2"></div>
-        <div class="step" [class.active]="workflowStep() === 3">
-            <div class="step-number">3</div>
-            <div class="step-label">Download Result</div>
-            <div class="step-description">Get bilingual file</div>
+        <div class="flex flex-col items-center gap-1">
+            <div class="step-number" [class.active]="workflowStep() === 3">3</div>
+            <div class="text-xs font-medium text-gray-700">Download</div>
+            <div class="text-xs text-gray-500">Result</div>
         </div>
     </div>
 
     <!-- Provider Selector -->
-    <div class="provider-section">
-        <h2 class="section-title">Select AI Provider</h2>
-        <div class="provider-cards">
+    <div class="mb-4">
+        <h2 class="text-xs uppercase tracking-wide text-gray-500 mb-2">Select AI Provider</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
             @for (provider of providers; track provider.id) {
-            <button class="provider-card" [class.active]="selectedProvider() === provider.id"
-                [style.--provider-color]="provider.color" (click)="selectProvider(provider.id)"
-                [disabled]="isProcessing()">
-                <div class="provider-card-header">
-                    <div class="provider-name">{{ provider.name }}</div>
+            <button class="p-3 rounded-md border-2 transition-all text-left relative"
+                [class.border-gray-200]="selectedProvider() !== provider.id"
+                [class.bg-white]="selectedProvider() !== provider.id"
+                [class.border-blue-500]="selectedProvider() === provider.id"
+                [class.bg-blue-50]="selectedProvider() === provider.id" [style.--provider-color]="provider.color"
+                (click)="selectProvider(provider.id)" [disabled]="isProcessing()">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="text-sm font-medium text-gray-800">{{ provider.name }}</div>
                     @if (provider.freeTier) {
                     <span class="free-badge">Free tier</span>
                     } @else {
                     <span class="paid-badge">Paid</span>
                     }
                 </div>
-                <div class="provider-model">{{ provider.model }}</div>
+                <div class="text-xs font-mono text-gray-400 mb-2">{{ provider.model }}</div>
                 @if (provider.id !== 'anthropic') {
-                <a class="provider-link" [href]="provider.keyUrl" target="_blank" rel="noopener"
-                    (click)="$event.stopPropagation()">Get API key →</a>
+                <a class="text-xs text-blue-600 hover:text-blue-700" [href]="provider.keyUrl" target="_blank"
+                    rel="noopener" (click)="$event.stopPropagation()">Get API key →</a>
                 }
-                <div class="provider-indicator"></div>
             </button>
             }
         </div>
@@ -117,15 +116,17 @@
 
     <!-- Model Selector -->
     @if (selectedProviderInfo()?.models?.length && selectedProvider() !== 'anthropic') {
-    <div class="model-section">
-        <h2 class="section-title">Model</h2>
-        <div class="model-cards">
+    <div class="mb-4">
+        <h2 class="text-xs uppercase tracking-wide text-gray-500 mb-2">Model</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
             @for (model of selectedProviderInfo()!.models; track model.id) {
-            <button class="model-card" [class.active]="selectedModel() === model.id"
+            <button class="p-2.5 rounded-md border-2 transition-all text-left"
+                [class.border-gray-200]="selectedModel() !== model.id" [class.bg-white]="selectedModel() !== model.id"
+                [class.border-blue-500]="selectedModel() === model.id" [class.bg-blue-50]="selectedModel() === model.id"
                 [style.--provider-color]="selectedProviderInfo()?.color" (click)="selectModel(model.id)"
                 [disabled]="isProcessing()">
-                <div class="model-name">{{ model.name }}</div>
-                <div class="model-description">{{ model.description }}</div>
+                <div class="text-xs font-medium text-gray-800 mb-0.5">{{ model.name }}</div>
+                <div class="text-xs text-gray-500">{{ model.description }}</div>
             </button>
             }
         </div>
@@ -153,7 +154,8 @@
                 [style.--provider-color]="selectedProviderInfo()?.color"
                 [placeholder]="selectedProviderInfo()?.keyPlaceholder" [(ngModel)]="apiKey" (blur)="saveApiKey()"
                 [disabled]="isProcessing()" />
-            <button class="toggle-visibility-btn" (click)="toggleApiKeyVisibility()" [disabled]="isProcessing()">
+            <button class="p-2 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
+                (click)="toggleApiKeyVisibility()" [disabled]="isProcessing()">
                 @if (showApiKey()) {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path
