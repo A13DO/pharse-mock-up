@@ -20,6 +20,7 @@ import {
 } from '../../../layout/header/header.component';
 import { Select } from 'primeng/select';
 import { MultiSelect } from 'primeng/multiselect';
+import { HlmDatePicker } from '@spartan-ng/helm/date-picker';
 
 @Component({
   selector: 'app-project-create',
@@ -30,6 +31,7 @@ import { MultiSelect } from 'primeng/multiselect';
     HeaderComponent,
     Select,
     MultiSelect,
+    HlmDatePicker,
   ],
   templateUrl: './project-create.component.html',
   styleUrl: './project-create.component.scss',

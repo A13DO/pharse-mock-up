@@ -12,6 +12,7 @@ import { PaginatorModule, PaginatorState } from 'primeng/paginator';
 import { ButtonModule } from 'primeng/button';
 import { CheckboxModule } from 'primeng/checkbox';
 import { SkeletonModule } from 'primeng/skeleton';
+import { HlmTooltipImports } from '@spartan-ng/helm/tooltip';
 
 export interface TableColumn {
   field?: string;
@@ -32,6 +33,7 @@ export interface TableColumn {
     ButtonModule,
     CheckboxModule,
     SkeletonModule,
+    HlmTooltipImports,
   ],
   templateUrl: './data-table.component.html',
   styleUrl: './data-table.component.scss',
