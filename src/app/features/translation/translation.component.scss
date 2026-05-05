@@ -211,7 +211,7 @@
   animation: fadeIn 0.3s ease;
 
   .step-title {
-    font-size: 1.75rem;
+    font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: var(--text-primary);
@@ -221,6 +221,8 @@
     color: var(--text-secondary);
     margin-bottom: 2rem;
     line-height: 1.6;
+    font-size: 0.825rem;
+    max-width: 900px;
   }
 }
 
