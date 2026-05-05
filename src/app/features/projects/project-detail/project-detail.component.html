@@ -1,7 +1,7 @@
 <app-header [breadcrumbs]="breadcrumbs()"></app-header>
 
-<div class="px-8 py-8 bg-white">
-    <div class="max-w-7xl mx-auto">
+<div class="px-4 md:px-6 lg:px-8 py-6 md:py-8 bg-white w-full">
+    <div class="max-w-7xl mx-auto w-full">
         <!-- Loading State -->
         @if (loading) {
         <div class="flex flex-col items-center justify-center p-12 gap-4">
@@ -26,59 +26,67 @@
         <!-- Main Content -->
         @if (project() && !loading) {
         <!-- Project Info Card -->
-        <div class="bg-white border border-[#e5e7eb] rounded-lg shadow-sm p-8 mb-12">
+        <div class="bg-white border border-[#e5e7eb] rounded-lg shadow-sm p-4 md:p-6 lg:p-8 mb-8 md:mb-12">
             <!-- Two Column Layout -->
-            <div class="grid grid-cols-2 gap-24">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 lg:gap-24">
                 <!-- Left Column: Basic Info -->
-                <div class="space-y-6">
+                <div class="space-y-4 md:space-y-6">
                     <!-- ID -->
-                    <div class="flex items-center">
-                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">ID</label>
+                    <div class="flex flex-col sm:flex-row sm:items-center">
+                        <label
+                            class="text-[#6b7280] text-sm font-medium sm:w-32 sm:text-right sm:pr-4 mb-1 sm:mb-0">ID</label>
                         <div class="text-[#111] font-semibold">{{ project()?.id }}</div>
                     </div>
 
                     <!-- Name -->
-                    <div class="flex items-center">
-                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Name</label>
+                    <div class="flex flex-col sm:flex-row sm:items-center">
+                        <label
+                            class="text-[#6b7280] text-sm font-medium sm:w-32 sm:text-right sm:pr-4 mb-1 sm:mb-0">Name</label>
                         <div class="text-[#111] font-semibold">{{ project()?.name }}</div>
                     </div>
 
                     <!-- Created by -->
-                    <div class="flex items-center">
-                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Created by</label>
+                    <div class="flex flex-col sm:flex-row sm:items-center">
+                        <label
+                            class="text-[#6b7280] text-sm font-medium sm:w-32 sm:text-right sm:pr-4 mb-1 sm:mb-0">Created
+                            by</label>
                         <div class="text-[#111] font-semibold">
                             {{ project()?.owner?.userName || 'N/A' }}
                         </div>
                     </div>
 
                     <!-- Created Date -->
-                    <div class="flex items-center">
-                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Created</label>
+                    <div class="flex flex-col sm:flex-row sm:items-center">
+                        <label
+                            class="text-[#6b7280] text-sm font-medium sm:w-32 sm:text-right sm:pr-4 mb-1 sm:mb-0">Created</label>
                         <div class="text-[#111] font-semibold">{{ formatDate(project()?.dateCreated || '') }}</div>
                     </div>
 
                     <!-- Status -->
-                    <div class="flex items-center">
-                        <label class="text-[#6b7280] text-sm font-medium w-32 text-right pr-4">Status</label>
+                    <div class="flex flex-col sm:flex-row sm:items-center">
+                        <label
+                            class="text-[#6b7280] text-sm font-medium sm:w-32 sm:text-right sm:pr-4 mb-1 sm:mb-0">Status</label>
                         <div class="text-[#111] font-semibold">{{ project()?.status }}</div>
                     </div>
                 </div>
 
                 <!-- Right Column: Settings -->
-                <div class="space-y-6">
+                <div class="space-y-4 md:space-y-6">
                     <!-- Source Language -->
-                    <div class="flex items-center">
-                        <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">Source
+                    <div class="flex flex-col sm:flex-row sm:items-center">
+                        <label
+                            class="text-[#6b7280] text-sm font-medium sm:w-40 sm:text-right sm:pr-4 mb-1 sm:mb-0">Source
                             language</label>
                         <span
-                            class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200">
+                            class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 w-fit">
                             {{ project()?.sourceLang | uppercase }}
                         </span>
                     </div>
 
                     <!-- Target Languages -->
-                    <div class="flex items-start mt-4">
-                        <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4 pt-1">Target
+                    <div class="flex flex-col sm:flex-row sm:items-start">
+                        <label
+                            class="text-[#6b7280] text-sm font-medium sm:w-40 sm:text-right sm:pr-4 sm:pt-1 mb-1 sm:mb-0">Target
                             languages</label>
                         <div class="flex flex-wrap gap-1.5 max-w-md">
                             @for (lang of project()?.targetLangs; track lang) {
@@ -91,8 +99,9 @@
                     </div>
 
                     <!-- AI/MT Service -->
-                    <div class="flex items-center">
-                        <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">AI/machine
+                    <div class="flex flex-col sm:flex-row sm:items-center">
+                        <label
+                            class="text-[#6b7280] text-sm font-medium sm:w-40 sm:text-right sm:pr-4 mb-1 sm:mb-0">AI/machine
                             translation service</label>
                         <div class="text-[#111] font-semibold">
                             {{ (project()?.mtSettingsPerLanguageList?.length || 0) > 0 ? 'Phrase Language AI' : 'N/A' }}
@@ -100,8 +109,9 @@
                     </div>
 
                     <!-- Owner -->
-                    <div class="flex items-center">
-                        <label class="text-[#6b7280] text-sm font-medium w-40 text-right pr-4">Owner</label>
+                    <div class="flex flex-col sm:flex-row sm:items-center">
+                        <label
+                            class="text-[#6b7280] text-sm font-medium sm:w-40 sm:text-right sm:pr-4 mb-1 sm:mb-0">Owner</label>
                         <div class="text-[#111] font-semibold">
                             {{ project()?.owner?.userName || 'N/A' }}
                         </div>
@@ -111,11 +121,11 @@
         </div>
 
         <!-- Jobs Section -->
-        <div class="mt-12">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-[#111]">Jobs</h2>
+        <div class="mt-8 md:mt-12">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 md:mb-6 gap-3">
+                <h2 class="text-xl md:text-2xl font-bold text-[#111]">Jobs</h2>
                 <button (click)="onAddJob()"
-                    class="h-9 mb-4 px-4 bg-slate-900 text-white rounded-md text-sm font-medium inline-flex items-center gap-1.5 transition-colors hover:bg-slate-800">
+                    class="h-9 px-4 bg-slate-900 text-white rounded-md text-sm font-medium inline-flex items-center justify-center gap-1.5 transition-colors hover:bg-slate-800 w-full sm:w-auto">
                     <i class="pi pi-plus text-xs"></i> Add Job
                 </button>
             </div>
