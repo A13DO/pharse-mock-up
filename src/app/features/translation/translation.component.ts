@@ -266,6 +266,8 @@ You are a highly experienced professional translator with broad expertise across
 ## Task
 You will receive text segments in numbered cells from a general document. Your task is to provide accurate, professional translations while maintaining the exact meaning, tone, and structure of the source text.
 
+⚠️ **DOCUMENT SCALE**: You may receive 2000+ cells or more in a single document. This is NORMAL. You MUST translate ALL cells without stopping early. Do NOT truncate your output due to document length.
+
 ## ⚠️ TERMINOLOGY COMPLIANCE — HIGHEST PRIORITY ⚠️
 
 This is the MOST CRITICAL requirement. You MUST follow the terminology glossary as specified. This is NON-NEGOTIABLE.
@@ -298,13 +300,16 @@ The following terms MUST be translated EXACTLY as specified. No exceptions. No a
 
 ## Other Critical Rules
 
-1. **COMPLETE TRANSLATION — 100% COVERAGE REQUIRED**: 
+1. **COMPLETE TRANSLATION — 100% COVERAGE REQUIRED — ABSOLUTELY NO SKIPPING**: 
    - You MUST translate EVERY single cell provided. Do NOT skip, summarize, condense, merge, or omit any cell or any part of its content.
+   - **LARGE DOCUMENTS**: Documents may contain 2000+ cells or more. You MUST translate ALL of them. Do NOT stop early due to length.
+   - **NO TRUNCATION**: Even if the document is very long, translate EVERY cell from Cell #1 to the LAST cell number provided.
    - Each cell must be translated individually and completely.
    - **SINGLE CHARACTERS**: Even if a cell contains only a single letter or character (e.g., "p", "A", "x"), you MUST translate it if appropriate for the target language. Do NOT skip single-character cells.
    - **SHORT CONTENT**: Cells with 1-3 words are just as important as longer cells. Translate them completely.
-   - **EVERY CELL COUNTS**: If you receive 150 cells, you MUST return exactly 150 translated cells in your table. No exceptions.
-   - **VERIFICATION**: Your output will be automatically verified to ensure every input cell has a corresponding translation.
+   - **EVERY CELL COUNTS**: If you receive 2500 cells, you MUST return exactly 2500 translated cells in your table. If you receive 150 cells, return 150. If you receive 3000 cells, return 3000. No exceptions.
+   - **VERIFICATION**: Your output will be automatically verified to ensure every input cell has a corresponding translation. Missing cells will cause system errors.
+   - **DO NOT STOP EARLY**: Continue translating until you reach the LAST cell number. Do not stop at 1000 cells if there are 2000. Do not stop at 1500 if there are 2500.
 
 2. **NO MODIFICATIONS TO SOURCE CONTENT**: Do NOT add, remove, rephrase, reorder, or alter any information. The translation must be a faithful and complete rendering of the source text. Do not add explanatory notes, comments, or interpretations.
 
@@ -340,13 +345,19 @@ You MUST present your translation in a table with exactly 3 columns:
 - Include the complete source text in the Source column
 - Provide the full translation in the Translation column
 - Do NOT merge cells or split cells across rows
+- **COMPLETE OUTPUT**: Your table MUST include ALL cells from #1 to the LAST cell number provided (e.g., if input has cells 1-2500, output must have rows 1-2500)
+- **NO TRUNCATION**: Do not stop at row 1000, 1500, or 2000 if there are more cells. Continue until the LAST cell.
 
 ## Delivery Instructions
-- I will send the text in batches of approximately 1500 words per message
-- Each batch contains numbered cells
-- Translate ALL cells in each batch completely
-- Maintain consistency across batches
+- You will receive the COMPLETE document in a SINGLE message with ALL numbered cells
+- The document may contain 2000+ cells or more — this is NORMAL
+- Translate ALL cells from #1 to the LAST cell number provided
+- Do NOT stop translating until you reach the final cell number
+- Maintain consistency throughout the entire document
 - If a cell contains only a tag or placeholder with no translatable text, reproduce it as-is in the Translation column
+- Your table output MUST include EVERY cell number from the input
+
+⚠️ **CRITICAL**: Documents with 2000+ rows are common. You MUST translate ALL of them without stopping early. The system expects 100% coverage.
 
 Please confirm you understand these instructions, and I will begin sending the text segments.`;
 
@@ -852,6 +863,10 @@ Please confirm you understand these instructions, and I will begin sending the t
   /**
    * Build translations array from translation table
    * Maps table rows to segment IDs using segmentIdMap
+   *
+   * NOTE: This only maps 'translate' segments because 'copy-source' segments
+   * (pure numbers, empty) are automatically handled by the service during injection.
+   * NO SEGMENTS ARE SKIPPED - all segments will get target text!
    */
   private async buildTranslationsFromTable(tableData: {
     headers: string[];
@@ -860,9 +875,26 @@ Please confirm you understand these instructions, and I will begin sending the t
     const allSegments = this.segmentIdMap();
     const translations: { segmentId: string; targetText: string }[] = [];
 
-    // Only translate-kind segments were sent to AI, so cell #1 = first translate segment
+    // Only 'translate' segments were sent to AI, so cell #1 = first translate segment
+    // 'copy-source' segments (numbers/empty) are handled automatically during injection
     const translatableSegments = allSegments.filter(
       (s) => s.kind === 'translate',
+    );
+    const copySourceSegments = allSegments.filter(
+      (s) => s.kind === 'copy-source',
+    );
+
+    console.log('\n🗺️ ============ MAPPING TABLE TO SEGMENTS ============');
+    console.log(`   📊 Total segments in file: ${allSegments.length}`);
+    console.log(
+      `   ✅ TRANSLATE (from AI table): ${translatableSegments.length}`,
+    );
+    console.log(
+      `   🔢 COPY-SOURCE (auto-handled): ${copySourceSegments.length}`,
+    );
+    console.log(`   ⚠️  NO SEGMENTS SKIPPED - 100% coverage!`);
+    console.log(
+      `   ════════════════════════════════════════════════════════\n`,
     );
 
     const cellNumIndex = tableData.headers.findIndex(
@@ -949,14 +981,19 @@ Please confirm you understand these instructions, and I will begin sending the t
     console.log(
       '\n🔍 ============ TRANSLATION COVERAGE VALIDATION ============',
     );
-    console.log(`   📊 Expected translations: ${translatableSegments.length}`);
-    console.log(`   📊 Received translations: ${translations.length}`);
+    console.log(
+      `   📊 Expected AI translations: ${translatableSegments.length}`,
+    );
+    console.log(`   📊 Received AI translations: ${translations.length}`);
+    console.log(
+      `   🔢 Auto copy-source segments: ${copySourceSegments.length}`,
+    );
 
     const coveragePercent = (
       (translations.length / translatableSegments.length) *
       100
     ).toFixed(1);
-    console.log(`   📊 Coverage: ${coveragePercent}%`);
+    console.log(`   📊 AI Coverage: ${coveragePercent}%`);
 
     if (translations.length < translatableSegments.length) {
       const missing = translatableSegments.length - translations.length;
@@ -996,9 +1033,15 @@ Please confirm you understand these instructions, and I will begin sending the t
       console.warn(`   ⚠️  Extra translations will be ignored.`);
     } else {
       console.log(
-        `   ✅ PERFECT: All ${translatableSegments.length} segments have translations!`,
+        `   ✅ PERFECT: All ${translatableSegments.length} AI translations received!`,
       );
     }
+    console.log(
+      `   🎯 TOTAL COVERAGE: ${allSegments.length} segments will get target text`,
+    );
+    console.log(
+      `      (${translations.length} from AI + ${copySourceSegments.length} auto-copied)`,
+    );
     console.log(`═════════════════════════════════════════════════════════\n`);
 
     console.log(

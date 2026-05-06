@@ -19,8 +19,7 @@ export type Provider = 'anthropic' | 'openai' | 'gemini' | 'groq';
 /** Segment kinds determined at extraction time */
 type SegmentKind =
   | 'translate' // send to AI
-  | 'copy-source' // keep source as target (e.g. pure numbers)
-  | 'skip'; // locked or empty — leave target untouched
+  | 'copy-source'; // keep source as target (e.g. pure numbers, empty segments)
 
 interface Segment {
   id: string;
@@ -264,48 +263,44 @@ export class DocxTranslationService {
   }
 
   /**
-   * Classify a segment based on its content and lock status
+   * Classify a segment based on its content (lock status is IGNORED)
    *
    * Classification rules:
-   * - locked=true → 'skip' (already translated, don't touch)
-   * - empty → 'skip' (nothing to translate)
+   * - empty → 'copy-source' (copy empty string)
    * - pure numbers → 'copy-source' (123, 1234, etc.)
-   * - EVERYTHING ELSE → 'translate' (single characters like "p", words, sentences, mixed content, formatted numbers, etc.)
+   * - EVERYTHING ELSE → 'translate' (single characters like "p", words, sentences, mixed content, formatted numbers, locked segments, etc.)
+   *
+   * NOTE: Locked segments are NO LONGER SKIPPED - they will be retranslated
    */
   private classifySegment(sourceText: string, isLocked: boolean): SegmentKind {
-    // Rule 1: Locked segments (already translated) → skip
-    if (isLocked) {
-      console.log(`   🔒 SKIP (locked): "${sourceText.substring(0, 50)}"`);
-      return 'skip';
-    }
-
     const trimmed = sourceText.trim();
 
-    // Rule 2: Empty segments → skip
+    // Rule 1: Empty segments → copy-source (will copy empty to empty)
     if (!trimmed) {
-      console.log(`   ⭕ SKIP (empty)`);
-      return 'skip';
-    }
-
-    // Rule 3: Pure integer numbers only → copy-source
-    // Examples that match: "123", "0", "999999"
-    // Examples that DON'T match and WILL be translated: "1.5", "1,234", "50%", "Item 123", "{1}", "p", "A"
-    if (/^\d+$/.test(trimmed)) {
-      console.log(`   🔢 COPY-SOURCE (pure number): "${trimmed}"`);
+      console.log(`   ⭕ COPY-SOURCE (empty)`);
       return 'copy-source';
     }
 
-    // Rule 4: EVERYTHING ELSE → translate
-    // This includes: single characters ("p", "A"), words, sentences, mixed content, formatted numbers, decimals, etc.
+    // Rule 2: Pure integer numbers only → copy-source
+    // Examples that match: "123", "0", "999999"
+    // Examples that DON'T match and WILL be translated: "1.5", "1,234", "50%", "Item 123", "{1}", "p", "A"
+    if (/^\d+$/.test(trimmed)) {
+      // console.log(`   🔢 COPY-SOURCE (pure number): "${trimmed}"`);
+      return 'copy-source';
+    }
+
+    // Rule 3: EVERYTHING ELSE → translate
+    // This includes: locked segments, single characters ("p", "A"), words, sentences, mixed content, formatted numbers, decimals, etc.
+    const lockedNote = isLocked ? ' (locked - will retranslate)' : '';
     const lengthNote =
       trimmed.length === 1
         ? ' (single character)'
         : trimmed.length <= 3
           ? ' (short)'
           : '';
-    console.log(
-      `   ✅ TRANSLATE${lengthNote}: "${trimmed.substring(0, 50)}${trimmed.length > 50 ? '...' : ''}"`,
-    );
+    // console.log(
+    //   `   ✅ TRANSLATE${lockedNote}${lengthNote}: "${trimmed.substring(0, 50)}${trimmed.length > 50 ? '...' : ''}"`,
+    // );
     return 'translate';
   }
 
@@ -390,10 +385,8 @@ export class DocxTranslationService {
 
         const kind = this.classifySegment(sourceText, isLocked);
 
-        // Show translate + copy-source in preview, skip 'skip'
-        if (kind !== 'skip') {
-          segments.push({ source: sourceText, target: targetText });
-        }
+        // Show all segments (no skip category exists)
+        segments.push({ source: sourceText, target: targetText });
       });
 
       return segments;
@@ -451,7 +444,7 @@ export class DocxTranslationService {
       body = {
         systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
         contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-        generationConfig: { maxOutputTokens: 4096 },
+        // generationConfig: { maxOutputTokens: 4096 },
       };
       extractFn = (d) => d.candidates[0].content.parts[0].text;
     } else {
@@ -475,6 +468,12 @@ export class DocxTranslationService {
     if (provider === 'anthropic') {
       console.log('   📝 Body size:', JSON.stringify(body).length, 'chars');
     }
+
+    // Log the full request payload for debugging
+    // console.log('\n🔍 REQUEST PAYLOAD:');
+    // console.log(JSON.stringify(body, null, 2));
+    // console.log('\n');
+
     console.log('   ⏳ Waiting for AI response...');
     let response: Response;
     try {
@@ -514,7 +513,20 @@ export class DocxTranslationService {
     }
 
     const data = await response.json();
+
+    // Log the full API response
+    console.log('\n📨 API RESPONSE:');
+    console.log(JSON.stringify(data, null, 2));
+    console.log('\n');
+
     const text = extractFn(data);
+
+    // Log the extracted text
+    console.log('\n📝 EXTRACTED TEXT:');
+    console.log('Length:', text?.length || 0, 'chars');
+    console.log('Preview:', text?.substring(0, 500) || '(empty)');
+    console.log('\n');
+
     if (!text) throw new Error(`Empty response from ${provider}`);
     return text;
   }
@@ -1021,19 +1033,15 @@ export class DocxTranslationService {
     const copySourceCount = segments.filter(
       (s) => s.kind === 'copy-source',
     ).length;
-    const skipCount = segments.filter((s) => s.kind === 'skip').length;
 
     console.log(`\n📊 ============ CLASSIFICATION SUMMARY ============`);
     console.log(`   📝 Total segments: ${segments.length}`);
     console.log(`   ✅ TRANSLATE (will be sent to AI): ${translateCount}`);
-    console.log(`   🔢 COPY-SOURCE (pure numbers): ${copySourceCount}`);
-    console.log(`   🔒 SKIP (locked/empty): ${skipCount}`);
+    console.log(`   🔢 COPY-SOURCE (pure numbers/empty): ${copySourceCount}`);
     console.log(`   ════════════════════════════════════════════════`);
+    console.log(`   🎯 ALL segments will get target text: ${segments.length}`);
     console.log(
-      `   🎯 Segments that will get target text: ${translateCount + copySourceCount}`,
-    );
-    console.log(
-      `   ⚠️  Note: 'SKIP' segments already have translations and won't be modified`,
+      `   🔄 Note: Locked segments will be RETRANSLATED (not skipped)`,
     );
     console.log(`\n`);
 
@@ -1099,15 +1107,14 @@ export class DocxTranslationService {
 
     const transUnits = xmlDoc.querySelectorAll('trans-unit');
     let aiTranslatedCount = 0;
-    let copiedNumbersCount = 0;
-    let skippedCount = 0;
+    let copiedCount = 0;
 
     transUnits.forEach((transUnit) => {
       const id = transUnit.getAttribute('id');
       if (!id) return;
 
       let targetText: string | undefined;
-      let action: 'AI' | 'COPY' | 'SKIP' = 'SKIP';
+      let action: 'AI' | 'COPY' = 'AI';
 
       if (translationMap.has(id)) {
         targetText = translationMap.get(id)!;
@@ -1116,10 +1123,11 @@ export class DocxTranslationService {
       } else if (copySourceMap.has(id)) {
         targetText = copySourceMap.get(id)!;
         action = 'COPY';
-        copiedNumbersCount++;
+        copiedCount++;
       } else {
-        skippedCount++;
-        return; // skip — leave target untouched (locked segments)
+        // This shouldn't happen if classification is correct
+        console.warn(`⚠️ No translation or copy-source for segment: ${id}`);
+        return;
       }
 
       let targetElement = transUnit.querySelector(':scope > target');
@@ -1139,15 +1147,15 @@ export class DocxTranslationService {
 
     console.log(`\n📊 ============ INJECTION SUMMARY ============`);
     console.log(`   ✅ AI Translated: ${aiTranslatedCount} segments`);
-    console.log(`   🔢 Copied Numbers: ${copiedNumbersCount} segments`);
-    console.log(`   🔒 Skipped (locked): ${skippedCount} segments`);
+    console.log(`   🔢 Copied (numbers/empty): ${copiedCount} segments`);
     console.log(`   ════════════════════════════════════════════`);
     console.log(
-      `   🎯 Total segments updated: ${aiTranslatedCount + copiedNumbersCount}`,
+      `   🎯 Total segments updated: ${aiTranslatedCount + copiedCount}`,
     );
     console.log(
-      `   ✅ Coverage: ${(((aiTranslatedCount + copiedNumbersCount) / transUnits.length) * 100).toFixed(1)}% of all segments`,
+      `   ✅ Coverage: 100% (${aiTranslatedCount + copiedCount} of ${transUnits.length} segments)`,
     );
+    console.log(`   🔄 Note: Previously locked segments were RETRANSLATED`);
     console.log(`\n`);
 
     const serializer = new XMLSerializer();
