@@ -116,6 +116,12 @@ export class TranslationComponent implements OnInit {
   segmentIdMap = signal<
     { id: string; segNum: number; sourceText: string; kind: string }[]
   >([]);
+  // Missing segments tracking for retry
+  missingSegments = signal<
+    { id: string; segNum: number; sourceText: string; cellNum: number }[]
+  >([]);
+  translationCoverage = signal<number>(100);
+  isRetryingMissing = signal<boolean>(false);
 
   providers: ProviderInfo[] = [
     {
@@ -995,6 +1001,9 @@ Please confirm you understand these instructions, and I will begin sending the t
     ).toFixed(1);
     console.log(`   📊 AI Coverage: ${coveragePercent}%`);
 
+    // Store coverage percentage
+    this.translationCoverage.set(parseFloat(coveragePercent));
+
     if (translations.length < translatableSegments.length) {
       const missing = translatableSegments.length - translations.length;
       console.warn(
@@ -1004,37 +1013,54 @@ Please confirm you understand these instructions, and I will begin sending the t
 
       // Find which cells are missing
       const receivedCells = new Set(translations.map((t) => t.segmentId));
-      const missingSegments = translatableSegments.filter(
+      const missingSegmentsList = translatableSegments.filter(
         (s) => !receivedCells.has(s.id),
       );
 
       console.warn(`   ⚠️  Missing segments (first 5):`);
-      missingSegments.slice(0, 5).forEach((s) => {
+      missingSegmentsList.slice(0, 5).forEach((s, idx) => {
+        const cellNum = idx + 1;
         console.warn(
-          `      Cell #${s.segNum + 1}: "${s.sourceText.substring(0, 50)}..."`,
+          `      Cell #${cellNum}: "${s.sourceText.substring(0, 50)}..."`,
         );
       });
+
+      // Store missing segments for retry with correct cell numbers
+      const missingWithCellNums = missingSegmentsList.map((seg) => {
+        // Find the cell number this segment should have been
+        const cellNum =
+          translatableSegments.findIndex((t) => t.id === seg.id) + 1;
+        return {
+          id: seg.id,
+          segNum: seg.segNum,
+          sourceText: seg.sourceText,
+          cellNum: cellNum,
+        };
+      });
+      this.missingSegments.set(missingWithCellNums);
 
       console.warn(
         `   ⚠️  Continuing with partial translation. ${translations.length} out of ${translatableSegments.length} segments will be translated.`,
       );
       console.warn(
-        `   💡 TIP: You can re-translate untranslated segments later or upload the file with partial translations.`,
+        `   💡 TIP: Use the "Translate Missing Segments" button to complete the translation.`,
       );
 
-      // Show warning in UI without blocking the process
+      // Show warning in UI with retry option
       this.errorMessage.set(
-        `⚠️ Warning: ${missing} segments were not translated by the AI. The file will contain ${translations.length} translated segments. You can proceed with the partial translation or try again.`,
+        `⚠️ Warning: ${missing} segments missing (${coveragePercent}% coverage). Click "Translate Missing Segments" below to complete.`,
       );
     } else if (translations.length > translatableSegments.length) {
       console.warn(
         `   ⚠️  WARNING: AI returned MORE translations than expected!`,
       );
       console.warn(`   ⚠️  Extra translations will be ignored.`);
+      this.missingSegments.set([]); // Clear missing segments
     } else {
       console.log(
         `   ✅ PERFECT: All ${translatableSegments.length} AI translations received!`,
       );
+      this.missingSegments.set([]); // Clear missing segments
     }
     console.log(
       `   🎯 TOTAL COVERAGE: ${allSegments.length} segments will get target text`,
@@ -1049,6 +1075,155 @@ Please confirm you understand these instructions, and I will begin sending the t
     );
     return translations;
   }
+
+  /**
+   * Translate only the missing segments and merge with existing translations
+   */
+  async translateMissingSegments(): Promise<void> {
+    const missing = this.missingSegments();
+    const currentTable = this.termBaseTable();
+
+    if (missing.length === 0) {
+      console.log('✅ No missing segments to translate');
+      return;
+    }
+
+    if (!currentTable) {
+      this.errorMessage.set('No existing translation table found');
+      return;
+    }
+
+    console.log('\n🔄 ============ RETRYING MISSING SEGMENTS ============');
+    console.log(`   📊 Missing segments to translate: ${missing.length}`);
+    console.log(`   📊 Existing translations: ${currentTable.rows.length}`);
+    console.log(`   🎯 Target: 100% coverage\n`);
+
+    this.isRetryingMissing.set(true);
+    this.errorMessage.set(null);
+
+    try {
+      // Format missing segments for AI with their correct cell numbers
+      const formattedSegments = missing.map((seg) => {
+        return `[Cell #${seg.cellNum}]\n${seg.sourceText}`;
+      });
+      const missingText = formattedSegments.join('\n\n');
+
+      console.log(`   📝 Formatted ${missing.length} segments for AI`);
+      console.log(`   📄 First missing cell: #${missing[0].cellNum}`);
+      console.log(
+        `   📄 Last missing cell: #${missing[missing.length - 1].cellNum}`,
+      );
+
+      // Call AI with same settings
+      const provider = this.selectedProvider();
+      const apiKey = this.apiKey();
+      const prompt = this.finalPrompt();
+
+      console.log(`   🤖 Calling ${provider.toUpperCase()} API...`);
+
+      // Use the new service method for formatted text translation
+      const responseText = await this.docxService.translateFormattedText(
+        missingText,
+        prompt,
+        provider,
+        apiKey,
+        this.selectedModel(),
+      );
+
+      console.log(`   ✅ AI response received`);
+
+      // Parse the response table
+      const newTableData = this.parseMarkdownTable(responseText);
+
+      if (!newTableData || newTableData.rows.length === 0) {
+        throw new Error('Failed to parse missing segments response table');
+      }
+
+      console.log(`   📊 Parsed ${newTableData.rows.length} new translations`);
+
+      // Merge new translations with existing table
+      const mergedRows = [...currentTable.rows];
+
+      // Map cell numbers to segment IDs for the new translations
+      const newTranslations: { [cellNum: number]: string } = {};
+
+      const cellNumIndex = newTableData.headers.findIndex(
+        (h) =>
+          h.toLowerCase().includes('cell') || h.toLowerCase().includes('#'),
+      );
+      const translationIndex = newTableData.headers.findIndex((h) => {
+        const lower = h.toLowerCase();
+        return (
+          lower.includes('translation') ||
+          lower.includes('traduction') ||
+          lower.includes('traducción') ||
+          h.includes('ترجمة') ||
+          h.includes('翻译') ||
+          newTableData.headers.indexOf(h) === 2
+        );
+      });
+
+      if (cellNumIndex === -1 || translationIndex === -1) {
+        throw new Error(
+          'Could not find Cell # or Translation columns in response',
+        );
+      }
+
+      // Build map of cell number -> translation
+      newTableData.rows.forEach((row) => {
+        const cellNumStr = row[cellNumIndex];
+        const translation = row[translationIndex];
+        if (cellNumStr && translation) {
+          const cellNum = parseInt(cellNumStr, 10);
+          if (!isNaN(cellNum)) {
+            newTranslations[cellNum] = translation;
+          }
+        }
+      });
+
+      console.log(
+        `   🔗 Mapped ${Object.keys(newTranslations).length} new translations by cell number`,
+      );
+
+      // Add new rows to existing table
+      missing.forEach((missingSeg) => {
+        const translation = newTranslations[missingSeg.cellNum];
+        if (translation) {
+          mergedRows.push([
+            missingSeg.cellNum.toString(),
+            missingSeg.sourceText,
+            translation.trim(),
+          ]);
+          console.log(`   ✓ Added Cell #${missingSeg.cellNum}`);
+        }
+      });
+
+      // Update the table with merged data
+      const updatedTable = {
+        headers: currentTable.headers,
+        rows: mergedRows,
+      };
+
+      this.termBaseTable.set(updatedTable);
+      console.log(`   ✅ Table updated with ${mergedRows.length} total rows`);
+
+      // Clear missing segments and update coverage
+      this.missingSegments.set([]);
+      this.translationCoverage.set(100);
+      this.errorMessage.set(null);
+
+      console.log(`   🎉 SUCCESS: 100% coverage achieved!`);
+      console.log(`   ═══════════════════════════════════════════════════\n`);
+    } catch (error: any) {
+      console.error('❌ Failed to translate missing segments:', error);
+      this.errorMessage.set(
+        `Failed to translate missing segments: ${error.message}`,
+      );
+    } finally {
+      this.isRetryingMissing.set(false);
+    }
+  }
+
   async copyTableText(): Promise<void> {
     try {
       await navigator.clipboard.writeText(this.getTableAsText());

@@ -212,7 +212,7 @@
         <p class="step-description">The bilingual document can be analyzed to extract terminology. The system will
             create a TermBase table with source terms and translations. Alternatively, you can skip this step and
             translate directly.</p>
-<!-- 
+        <!-- 
         <div class="step-1-info">
             <div class="info-box">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -567,6 +567,38 @@
                 <line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2" stroke-linecap="round" />
             </svg>
             <span>{{ uploadMessage() }}</span>
+        </div>
+        }
+
+        <!-- Missing Segments Warning & Retry Button -->
+        @if (missingSegments().length > 0 && !isRetryingMissing()) {
+        <div class="missing-segments-banner">
+            <div class="missing-segments-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="10" stroke-width="2" />
+                    <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                <div class="missing-segments-info">
+                    <strong>⚠️ Incomplete Translation:</strong>
+                    <span>{{ missingSegments().length }} segments missing ({{ translationCoverage() }}% coverage)</span>
+                </div>
+            </div>
+            <button class="retry-missing-btn" (click)="translateMissingSegments()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Translate Missing Segments ({{ missingSegments().length }})
+            </button>
+        </div>
+        }
+
+        <!-- Retry Progress -->
+        @if (isRetryingMissing()) {
+        <div class="retry-progress-banner">
+            <div class="spinner-sm"></div>
+            <span>Translating {{ missingSegments().length }} missing segments...</span>
         </div>
         }
 

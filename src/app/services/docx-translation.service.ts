@@ -129,6 +129,42 @@ export class DocxTranslationService {
   }
 
   /**
+   * Translate pre-formatted text segments directly (for retry/missing segments)
+   * @param formattedText - Text already formatted with [Cell #N] markers
+   * @param customPrompt - Translation prompt
+   * @param provider - AI provider
+   * @param apiKey - API key
+   * @param model - Model ID
+   * @returns AI response text (table format)
+   */
+  async translateFormattedText(
+    formattedText: string,
+    customPrompt: string,
+    provider: Provider,
+    apiKey: string,
+    model = '',
+  ): Promise<string> {
+    console.log('\n🔄 ============ TRANSLATING FORMATTED TEXT ============');
+    console.log('🤖 Provider:', provider.toUpperCase());
+    console.log('📏 Text length:', formattedText.length, 'chars');
+    console.log('========================================================\n');
+
+    // Call AI directly with formatted text
+    const translatedText = await this.callProvider(
+      provider,
+      apiKey,
+      customPrompt,
+      formattedText,
+      model,
+    );
+
+    console.log('✅ Translation complete!');
+    console.log('   📊 Response length:', translatedText.length, 'chars\n');
+
+    return translatedText;
+  }
+
+  /**
    * Extract text from any supported file type
    * @param file - DOCX or MXLIFF file
    * @returns Extracted plain text
