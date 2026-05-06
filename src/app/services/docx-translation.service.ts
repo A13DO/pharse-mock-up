@@ -80,7 +80,7 @@ export class DocxTranslationService {
       '...',
     );
 
-    // Step 2: Call AI
+    // Step 2: Call AI (with batching for large MXLIFF files)
     console.log('\n🤖 STEP 2: Calling', provider.toUpperCase(), 'API...');
     console.log('   📝 Prompt length:', customPrompt.length, 'chars');
     console.log('   📝 Document length:', extractedText.length, 'chars');
@@ -89,13 +89,47 @@ export class DocxTranslationService {
       customPrompt.length + extractedText.length,
       'chars',
     );
-    const translatedText = await this.callProvider(
-      provider,
-      apiKey,
-      customPrompt,
-      extractedText,
-      model,
-    );
+
+    let translatedText: string;
+
+    // Use batching for MXLIFF files with Cell # markers (large segment-based translations)
+    if (
+      this.originalFileType === 'mxliff' &&
+      extractedText.includes('[Cell #')
+    ) {
+      const cellCount = (extractedText.match(/\[Cell #/g) || []).length;
+      console.log(`   📊 Detected ${cellCount} cells in MXLIFF file`);
+
+      // Use batching if more than 500 cells to avoid token limits
+      if (cellCount > 500) {
+        console.log('   🔄 Using batched translation for large document...\n');
+        translatedText = await this.translateInBatches(
+          extractedText,
+          customPrompt,
+          provider,
+          apiKey,
+          model,
+        );
+      } else {
+        translatedText = await this.callProvider(
+          provider,
+          apiKey,
+          customPrompt,
+          extractedText,
+          model,
+        );
+      }
+    } else {
+      // Regular single-call translation for DOCX or small MXLIFF
+      translatedText = await this.callProvider(
+        provider,
+        apiKey,
+        customPrompt,
+        extractedText,
+        model,
+      );
+    }
+
     console.log('✅ AI response received!');
     console.log('   📊 Response length:', translatedText.length, 'chars');
     console.log('   📄 Preview (first 300 chars):');
@@ -313,6 +347,93 @@ export class DocxTranslationService {
     const result = formattedSegments.join('\n\n');
 
     return result;
+  }
+
+  /**
+   * Batch segments and make multiple AI calls to handle large documents
+   * @param extractedText - Formatted segments with Cell # markers
+   * @param customPrompt - Translation instructions
+   * @param provider - AI provider
+   * @param apiKey - API key
+   * @param model - Model name
+   * @returns Combined AI response with all translations
+   */
+  async translateInBatches(
+    extractedText: string,
+    customPrompt: string,
+    provider: Provider,
+    apiKey: string,
+    model: string,
+  ): Promise<string> {
+    // Parse segments from formatted text
+    const segmentPattern = /\[Cell #(\d+)\]\n([\s\S]*?)(?=\[Cell #|\n\n$|$)/g;
+    const segments: { cellNum: number; text: string }[] = [];
+    let match;
+
+    while ((match = segmentPattern.exec(extractedText)) !== null) {
+      segments.push({
+        cellNum: parseInt(match[1], 10),
+        text: match[2].trim(),
+      });
+    }
+
+    console.log(`📦 Total segments to translate: ${segments.length}`);
+
+    // Define batch size (adjust based on model limits)
+    const BATCH_SIZE = 500; // Conservative limit to avoid token overflow
+    const batches: (typeof segments)[] = [];
+
+    for (let i = 0; i < segments.length; i += BATCH_SIZE) {
+      batches.push(segments.slice(i, i + BATCH_SIZE));
+    }
+
+    console.log(
+      `📦 Split into ${batches.length} batches of ~${BATCH_SIZE} segments each\n`,
+    );
+
+    const responses: string[] = [];
+
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      const batchNum = i + 1;
+      const firstCell = batch[0].cellNum;
+      const lastCell = batch[batch.length - 1].cellNum;
+
+      console.log(
+        `\n🔄 Processing batch ${batchNum}/${batches.length} (Cells ${firstCell}-${lastCell})`,
+      );
+
+      // Format batch
+      const batchText = batch
+        .map((seg) => `[Cell #${seg.cellNum}]\n${seg.text}`)
+        .join('\n\n');
+
+      // Add batch context to prompt
+      const batchPrompt = `${customPrompt}\n\n**BATCH INFO**: This is batch ${batchNum} of ${batches.length}. Translate cells ${firstCell} through ${lastCell}.`;
+
+      try {
+        const response = await this.callProvider(
+          provider,
+          apiKey,
+          batchPrompt,
+          batchText,
+          model,
+        );
+
+        responses.push(response);
+        console.log(`✅ Batch ${batchNum} complete (${response.length} chars)`);
+      } catch (error: any) {
+        console.error(`❌ Batch ${batchNum} failed:`, error.message);
+        throw new Error(`Batch ${batchNum} failed: ${error.message}`);
+      }
+    }
+
+    console.log(
+      `\n✅ All ${batches.length} batches complete, combining responses...\n`,
+    );
+
+    // Combine all responses
+    return responses.join('\n\n');
   }
 
   /**
