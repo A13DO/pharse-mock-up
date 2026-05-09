@@ -493,6 +493,47 @@ export class PhraseApiService {
   }
 
   /**
+   * Download target file from a specific job
+   * @param projectUid - Project unique identifier
+   * @param jobUid - Job unique identifier
+   * @param fileName - File name for the download
+   * @param format - File format (MXLF, DOCX, XLIFF, TMX) - default: MXLF
+   * @returns Promise with the file as Blob
+   */
+  downloadTargetFile(
+    projectUid: string,
+    jobUid: string,
+    fileName: string,
+    format: 'MXLF' | 'DOCX' | 'XLIFF' | 'TMX' = 'MXLF',
+  ): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const url = `https://phrase.runasp.net/api/Jobs/${projectUid}/${jobUid}/download-target-file`;
+
+      const headers = new HttpHeaders({
+        accept: '*/*',
+      });
+
+      this.http
+        .get(url, {
+          headers,
+          params: { fileName, format },
+          responseType: 'blob',
+          observe: 'response',
+        })
+        .pipe(catchError(this.handleError))
+        .subscribe({
+          next: (response) => {
+            const blob = response.body as Blob;
+            resolve(blob);
+          },
+          error: (error) => {
+            reject(error);
+          },
+        });
+    });
+  }
+
+  /**
    * Upload translated bilingual file back to Phrase TMS
    * @param jobUid - Job unique identifier
    * @param file - Translated bilingual DOCX file

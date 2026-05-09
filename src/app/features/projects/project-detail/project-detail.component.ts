@@ -182,12 +182,6 @@ export class ProjectDetailComponent implements OnInit {
     }
 
     try {
-      const blob = await this.phraseApi.downloadBilingualFile(
-        currentProject.uid,
-        [job.uid],
-        format,
-      );
-
       // Determine file extension based on format
       const extensions: Record<string, string> = {
         MXLF: 'mxliff',
@@ -196,6 +190,14 @@ export class ProjectDetailComponent implements OnInit {
         TMX: 'tmx',
       };
       const ext = extensions[format] || 'mxliff';
+      const fileName = `${job.filename.replace(/\.[^/.]+$/, '')}_bilingual.${ext}`;
+
+      const blob = await this.phraseApi.downloadTargetFile(
+        currentProject.uid,
+        job.uid,
+        fileName,
+        format,
+      );
 
       // Create download filename
       const filename = `${job.filename.replace(/\.[^/.]+$/, '')}_bilingual.${ext}`;
