@@ -31,7 +31,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   if (
     token &&
     (req.url.includes('cloud.memsource.com') ||
-      req.url.includes('phrase.runasp.net'))
+      req.url.includes('phrasetranslation.runasp.net'))
   ) {
     const authHeader = `ApiToken ${token}`;
     console.log('🔑 Interceptor - Setting Authorization header:', authHeader);
