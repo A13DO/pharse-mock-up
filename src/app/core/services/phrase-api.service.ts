@@ -226,7 +226,9 @@ export class PhraseApiService {
 
   getProjects(): Observable<ProjectsResponse> {
     return this.http
-      .get<ProjectsResponse>('https://phrase.runasp.net/api/Phrase/projects')
+      .get<ProjectsResponse>(
+        'https://phrasetranslation.runasp.net/api/Phrase/projects',
+      )
       .pipe(catchError(this.handleError));
   }
   // getProjects(): Observable<any> {
@@ -236,13 +238,13 @@ export class PhraseApiService {
   //       'ApiToken xZ0U2u2OqE0nqvliTqRvFR0ucGs7twJbaRHniMxy0ablVPpv8gLd4Dp3kNrvcNWo3',
   //   });
 
-  //   return this.http.get('https://phrase.runasp.net/api/Phrase/projects');
+  //   return this.http.get('https://phrasetranslation.runasp.net/api/Phrase/projects');
   // }
 
   getProject(projectUid: string): Observable<ProjectDetail> {
     return this.http
       .get<ProjectDetail>(
-        `https://phrase.runasp.net/api/Phrase/projects/${projectUid}`,
+        `https://phrasetranslation.runasp.net/api/Phrase/projects/${projectUid}`,
       )
       .pipe(catchError(this.handleError));
   }
@@ -250,7 +252,7 @@ export class PhraseApiService {
   getJobs(projectUid: string): Observable<JobsResponse> {
     return this.http
       .get<JobsResponse>(
-        `https://phrase.runasp.net/api/Jobs/projects/${projectUid}/jobs`,
+        `https://phrasetranslation.runasp.net/api/Jobs/projects/${projectUid}/jobs`,
       )
       .pipe(catchError(this.handleError));
   }
@@ -258,7 +260,7 @@ export class PhraseApiService {
   getProjectTemplates(): Observable<ProjectTemplatesResponse> {
     return this.http
       .get<ProjectTemplatesResponse>(
-        'https://phrase.runasp.net/api/Phrase/project-templates',
+        'https://phrasetranslation.runasp.net/api/Phrase/project-templates',
         {
           headers: this.getHeaders(),
           withCredentials: true,
@@ -269,7 +271,10 @@ export class PhraseApiService {
 
   createProject(payload: CreateProjectDto): Observable<Project> {
     return this.http
-      .post<Project>('https://phrase.runasp.net/api/Phrase/projects', payload)
+      .post<Project>(
+        'https://phrasetranslation.runasp.net/api/Phrase/projects',
+        payload,
+      )
       .pipe(catchError(this.handleError));
   }
 
@@ -282,7 +287,7 @@ export class PhraseApiService {
     },
   ): Promise<any> {
     return new Promise((resolve, reject) => {
-      const url = `https://phrase.runasp.net/api/Jobs/projects/${projectUid}/jobs`;
+      const url = `https://phrasetranslation.runasp.net/api/Jobs/projects/${projectUid}/jobs`;
 
       // Create FormData for multipart/form-data request
       const formData = new FormData();
@@ -309,7 +314,9 @@ export class PhraseApiService {
    */
   getLanguages(): Observable<LanguagesResponse> {
     return this.http
-      .get<LanguagesResponse>('https://phrase.runasp.net/api/Phrase/languages')
+      .get<LanguagesResponse>(
+        'https://phrasetranslation.runasp.net/api/Phrase/languages',
+      )
       .pipe(catchError(this.handleError));
   }
 
@@ -461,7 +468,7 @@ export class PhraseApiService {
     format: 'MXLF' | 'DOCX' | 'XLIFF' | 'TMX' = 'MXLF',
   ): Promise<Blob> {
     return new Promise((resolve, reject) => {
-      const url = `https://phrase.runasp.net/api/Jobs/projects/${projectUid}/jobs/bilingualFile`;
+      const url = `https://phrasetranslation.runasp.net/api/Jobs/projects/${projectUid}/jobs/bilingualFile`;
 
       const payload = {
         jobs: jobUids.map((uid) => ({ uid })),
@@ -507,7 +514,7 @@ export class PhraseApiService {
     format: 'MXLF' | 'DOCX' | 'XLIFF' | 'TMX' = 'MXLF',
   ): Promise<Blob> {
     return new Promise((resolve, reject) => {
-      const url = `https://phrase.runasp.net/api/Jobs/${projectUid}/${jobUid}/download-target-file`;
+      const url = `https://phrasetranslation.runasp.net/api/Jobs/${projectUid}/${jobUid}/download-target-file`;
 
       const headers = new HttpHeaders({
         accept: '*/*',
@@ -548,7 +555,7 @@ export class PhraseApiService {
     setCompleted: boolean = true,
   ): Promise<any> {
     return new Promise((resolve, reject) => {
-      const url = `https://phrase.runasp.net/api/Jobs/bilingual-files`;
+      const url = `https://phrasetranslation.runasp.net/api/Jobs/bilingual-files`;
 
       const formData = new FormData();
       formData.append('file', file, file.name);
@@ -586,7 +593,7 @@ export class PhraseApiService {
     jobUids: string[],
     status: JobStatus,
   ): Observable<any> {
-    const url = `https://phrase.runasp.net/api/Jobs/projects/${projectUid}/jobs/batch`;
+    const url = `https://phrasetranslation.runasp.net/api/Jobs/projects/${projectUid}/jobs/batch`;
     const body = {
       status,
       jobs: jobUids.map((uid) => ({ uid })),

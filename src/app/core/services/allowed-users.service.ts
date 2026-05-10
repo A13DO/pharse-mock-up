@@ -11,7 +11,7 @@ export interface AllowedUser {
 })
 export class AllowedUsersService {
   private http = inject(HttpClient);
-  private baseUrl = 'https://phrase.runasp.net/api';
+  private baseUrl = 'https://phrasetranslation.runasp.net/api';
 
   /**
    * Get all allowed users

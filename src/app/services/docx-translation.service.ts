@@ -67,7 +67,6 @@ export class DocxTranslationService {
       extractedText,
       model,
     );
-   
 
     // Step 3: Rebuild DOCX
     const blob = await this.buildDocx(translatedText);
@@ -77,7 +76,6 @@ export class DocxTranslationService {
       '',
     );
     const filename = `${originalName}_translated_${provider}.docx`;
-
 
     return {
       blob,
@@ -103,7 +101,6 @@ export class DocxTranslationService {
     apiKey: string,
     model = '',
   ): Promise<string> {
-
     // Call AI directly with formatted text
     const translatedText = await this.callProvider(
       provider,
@@ -112,7 +109,6 @@ export class DocxTranslationService {
       formattedText,
       model,
     );
-
 
     return translatedText;
   }
@@ -371,7 +367,7 @@ export class DocxTranslationService {
       // Use Phrase proxy endpoint for Claude
       // Combine prompt and document, send as JSON in request body
       const fullText = `INSTRUCTIONS: ${systemPrompt}\n\nDOCUMENT:\n${documentText}`;
-      url = `https://phrase.runasp.net/api/Glossary/extract`;
+      url = `https://phrasetranslation.runasp.net/api/Glossary/extract`;
       body = fullText; // Send as JSON string in request body
       extractFn = (d) => {
         // Handle both object response and plain text response

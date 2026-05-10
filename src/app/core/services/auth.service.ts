@@ -136,7 +136,7 @@ export class AuthService {
     console.log('🔐 Attempting login for user:', credentials.userName);
     return this.http
       .post<LoginResponse>(
-        'https://phrase.runasp.net/api/Auth/login',
+        'https://phrasetranslation.runasp.net/api/Auth/login',
         credentials,
       )
       .pipe(
