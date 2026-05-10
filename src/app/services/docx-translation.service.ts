@@ -56,38 +56,10 @@ export class DocxTranslationService {
     responseText: string;
     fileType: 'docx' | 'mxliff';
   }> {
-    console.log('\n🚀 ============ STARTING TRANSLATION WORKFLOW ============');
-    console.log('📂 File:', file.name);
-    console.log('🤖 Provider:', provider.toUpperCase());
-    console.log('🔧 Model:', model || '(default)');
-    console.log('📏 File size:', (file.size / 1024).toFixed(2), 'KB');
-    console.log('========================================================\n');
-
     // Step 1: Extract plain text (supports both DOCX and MXLIFF)
-    console.log('\n📖 STEP 1: Extracting text from file...');
     const extractedText = await this.extractTextFromFile(file);
-    console.log('✅ Extraction complete!');
-    console.log('   📊 Total characters extracted:', extractedText.length);
-    console.log(
-      '   📊 Total words (approx):',
-      extractedText.split(/\s+/).length,
-    );
-    console.log('   📄 Preview (first 200 chars):');
-    console.log(
-      '   ',
-      extractedText.substring(0, 200).replace(/\n/g, ' '),
-      '...',
-    );
 
     // Step 2: Call AI
-    console.log('\n🤖 STEP 2: Calling', provider.toUpperCase(), 'API...');
-    console.log('   📝 Prompt length:', customPrompt.length, 'chars');
-    console.log('   📝 Document length:', extractedText.length, 'chars');
-    console.log(
-      '   📝 Combined payload size:',
-      customPrompt.length + extractedText.length,
-      'chars',
-    );
     const translatedText = await this.callProvider(
       provider,
       apiKey,
@@ -95,20 +67,10 @@ export class DocxTranslationService {
       extractedText,
       model,
     );
-    console.log('✅ AI response received!');
-    console.log('   📊 Response length:', translatedText.length, 'chars');
-    console.log('   📄 Preview (first 300 chars):');
-    console.log(
-      '   ',
-      translatedText.substring(0, 300).replace(/\n/g, ' '),
-      '...',
-    );
+   
 
     // Step 3: Rebuild DOCX
-    console.log('\n📝 STEP 3: Building DOCX file...');
     const blob = await this.buildDocx(translatedText);
-    console.log('✅ DOCX file created!');
-    console.log('   📊 File size:', (blob.size / 1024).toFixed(2), 'KB');
 
     const originalName = file.name.replace(
       /\.(docx|mxlf|mxliff|xliff|xml)$/i,
@@ -116,9 +78,6 @@ export class DocxTranslationService {
     );
     const filename = `${originalName}_translated_${provider}.docx`;
 
-    console.log('\n✅ ============ TRANSLATION WORKFLOW COMPLETE ============');
-    console.log('📦 Output file:', filename);
-    console.log('========================================================\n');
 
     return {
       blob,
@@ -144,10 +103,6 @@ export class DocxTranslationService {
     apiKey: string,
     model = '',
   ): Promise<string> {
-    console.log('\n🔄 ============ TRANSLATING FORMATTED TEXT ============');
-    console.log('🤖 Provider:', provider.toUpperCase());
-    console.log('📏 Text length:', formattedText.length, 'chars');
-    console.log('========================================================\n');
 
     // Call AI directly with formatted text
     const translatedText = await this.callProvider(
@@ -158,8 +113,6 @@ export class DocxTranslationService {
       model,
     );
 
-    console.log('✅ Translation complete!');
-    console.log('   📊 Response length:', translatedText.length, 'chars\n');
 
     return translatedText;
   }
@@ -203,8 +156,6 @@ export class DocxTranslationService {
         reject(new Error(`FileReader failed: ${reader.error?.message}`));
       reader.readAsArrayBuffer(file);
     });
-
-    console.log('📄 ArrayBuffer size:', arrayBuffer.byteLength, 'bytes');
 
     // Store the original buffer for later use
     this.originalDocxBuffer = arrayBuffer;
@@ -279,19 +230,12 @@ export class DocxTranslationService {
       });
 
       if (sourceTexts.length === 0) {
-        console.warn(
-          '⚠️ No source segments found in locked SDTs, falling back to mammoth extraction',
-        );
         // Fall back to mammoth if XML parsing didn't find source segments
         const rawResult = await mammoth.extractRawText({ arrayBuffer });
         return rawResult.value;
       }
 
       const result_text = sourceTexts.join('\n\n');
-      console.log(
-        `✅ Extracted ${sourceTexts.length} source segments from locked SDTs`,
-      );
-
       return result_text;
     } catch (err: any) {
       throw new Error(`Failed to extract source text: ${err?.message || err}`);
@@ -313,7 +257,6 @@ export class DocxTranslationService {
 
     // Rule 1: Empty segments → copy-source (will copy empty to empty)
     if (!trimmed) {
-      console.log(`   ⭕ COPY-SOURCE (empty)`);
       return 'copy-source';
     }
 
@@ -357,21 +300,6 @@ export class DocxTranslationService {
     const segments = await this.extractSegmentsFromMxliff();
     const toTranslate = segments.filter((s) => s.kind === 'translate');
 
-    console.log(`\n📤 ============ PREPARING TEXT FOR AI ============`);
-    console.log(`   📊 Total segments to translate: ${toTranslate.length}`);
-    console.log(`   📋 Format: Cell-numbered segments`);
-
-    // Show sample of what's being sent
-    if (toTranslate.length > 0) {
-      console.log(`   📄 First 3 segments being sent:`);
-      toTranslate.slice(0, 3).forEach((s, idx) => {
-        const preview = s.sourceText.substring(0, 60);
-        console.log(
-          `      Cell #${idx + 1}: "${preview}${s.sourceText.length > 60 ? '...' : ''}"`,
-        );
-      });
-    }
-
     // Format each segment with cell number for the AI
     const formattedSegments = toTranslate.map((s, idx) => {
       const cellNum = idx + 1;
@@ -379,12 +307,6 @@ export class DocxTranslationService {
     });
 
     const result = formattedSegments.join('\n\n');
-
-    console.log(`   ✅ Text prepared (${result.length} characters)`);
-    console.log(
-      `   ⚠️  AI MUST return exactly ${toTranslate.length} translations in table format\n`,
-    );
-
     return result;
   }
 
@@ -499,18 +421,6 @@ export class DocxTranslationService {
       extractFn = (d) => d.choices[0].message.content;
     }
 
-    console.log('   📤 Sending POST request to:', url.substring(0, 80) + '...');
-    console.log('   📦 Provider:', provider.toUpperCase());
-    if (provider === 'anthropic') {
-      console.log('   📝 Body size:', JSON.stringify(body).length, 'chars');
-    }
-
-    // Log the full request payload for debugging
-    // console.log('\n🔍 REQUEST PAYLOAD:');
-    // console.log(JSON.stringify(body, null, 2));
-    // console.log('\n');
-
-    console.log('   ⏳ Waiting for AI response...');
     let response: Response;
     try {
       response = await fetch(url, {
@@ -521,8 +431,6 @@ export class DocxTranslationService {
     } catch (err: any) {
       throw new Error(`Network error: ${err.message}`);
     }
-
-    console.log('   📥 HTTP Status:', response.status, response.statusText);
 
     if (!response.ok) {
       let detail = '';
@@ -549,19 +457,7 @@ export class DocxTranslationService {
     }
 
     const data = await response.json();
-
-    // Log the full API response
-    console.log('\n📨 API RESPONSE:');
-    console.log(JSON.stringify(data, null, 2));
-    console.log('\n');
-
     const text = extractFn(data);
-
-    // Log the extracted text
-    console.log('\n📝 EXTRACTED TEXT:');
-    console.log('Length:', text?.length || 0, 'chars');
-    console.log('Preview:', text?.substring(0, 500) || '(empty)');
-    console.log('\n');
 
     if (!text) throw new Error(`Empty response from ${provider}`);
     return text;
@@ -670,8 +566,6 @@ export class DocxTranslationService {
     rows: string[][],
     filename: string,
   ): Promise<Blob> {
-    console.log('📊 Building DOCX from table data...');
-
     // Create table rows
     const tableRows: TableRow[] = [];
 
@@ -727,7 +621,6 @@ export class DocxTranslationService {
     });
 
     const blob = await Packer.toBlob(doc);
-    console.log('✅ Table DOCX ready');
     return blob;
   }
 
@@ -737,7 +630,6 @@ export class DocxTranslationService {
    */
   setOriginalDocxBuffer(buffer: ArrayBuffer): void {
     this.originalDocxBuffer = buffer;
-    console.log('📦 Original DOCX buffer stored:', buffer.byteLength, 'bytes');
   }
 
   /**
@@ -746,7 +638,6 @@ export class DocxTranslationService {
    */
   setOriginalBuffer(buffer: ArrayBuffer): void {
     this.originalBuffer = buffer;
-    console.log('📦 Original buffer stored:', buffer.byteLength, 'bytes');
   }
 
   /**
@@ -758,13 +649,6 @@ export class DocxTranslationService {
     if (!this.originalDocxBuffer) {
       throw new Error('Original DOCX buffer not set');
     }
-
-    console.log('\n🔍 EXTRACTING SEGMENT IDs from original DOCX...');
-    console.log(
-      '   📦 Buffer size:',
-      (this.originalDocxBuffer.byteLength / 1024).toFixed(2),
-      'KB',
-    );
 
     try {
       // Load ZIP file
@@ -832,21 +716,6 @@ export class DocxTranslationService {
         }
       });
 
-      console.log('✅ Segment extraction complete!');
-      console.log('   📊 Total segments found:', segments.length);
-      console.log(
-        `   translate: ${segments.filter((s) => s.kind === 'translate').length}`,
-      );
-      console.log(
-        `   copy-source: ${segments.filter((s) => s.kind === 'copy-source').length}`,
-      );
-
-      if (segments.length > 0) {
-        console.log('   📄 First segment preview:');
-        console.log('      ID:', segments[0].id);
-        console.log('      Text:', segments[0].sourceText.substring(0, 100));
-        console.log('      Kind:', segments[0].kind);
-      }
       return segments;
     } catch (error: any) {
       console.error('❌ Failed to extract segments:', error);
@@ -864,14 +733,6 @@ export class DocxTranslationService {
   ): Promise<Blob> {
     if (!this.originalDocxBuffer) {
       throw new Error('Original DOCX buffer not set');
-    }
-
-    console.log('\n💉 INJECTING TRANSLATIONS into original DOCX...');
-    console.log('   📊 Translations to inject:', translations.length);
-    if (translations.length > 0) {
-      console.log('   📄 First translation preview:');
-      console.log('      Segment ID:', translations[0].segmentId);
-      console.log('      Text:', translations[0].targetText.substring(0, 100));
     }
 
     try {
@@ -975,27 +836,8 @@ export class DocxTranslationService {
 
         newRun.appendChild(textElement);
         paragraph.appendChild(newRun);
-
         updatedCount++;
-
-        // Debug log for first few updates
-        if (updatedCount <= 3) {
-          console.log(`   ✓ Updated segment ${updatedCount}:`, {
-            id: segmentId,
-            text:
-              translation.substring(0, 50) +
-              (translation.length > 50 ? '...' : ''),
-          });
-        }
       });
-
-      console.log('✅ Injection complete!');
-      console.log(
-        '   📊 Segments updated:',
-        updatedCount,
-        'out of',
-        translations.length,
-      );
 
       // Serialize XML back to string
       const serializer = new XMLSerializer();
@@ -1011,12 +853,6 @@ export class DocxTranslationService {
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
 
-      console.log('✅ Modified DOCX ready!');
-      console.log(
-        '   📊 Output file size:',
-        (blob.size / 1024).toFixed(2),
-        'KB',
-      );
       return blob;
     } catch (error: any) {
       console.error('❌ Failed to inject translations:', error);
@@ -1030,10 +866,6 @@ export class DocxTranslationService {
    */
   async extractSegmentsFromMxliff(): Promise<Segment[]> {
     if (!this.originalBuffer) throw new Error('Original MXLIFF buffer not set');
-
-    console.log(
-      '\n🔍 ============ EXTRACTING & CLASSIFYING SEGMENTS ============',
-    );
 
     const decoder = new TextDecoder('utf-8');
     const xmlText = decoder.decode(this.originalBuffer);
@@ -1070,41 +902,6 @@ export class DocxTranslationService {
       (s) => s.kind === 'copy-source',
     ).length;
 
-    console.log(`\n📊 ============ CLASSIFICATION SUMMARY ============`);
-    console.log(`   📝 Total segments: ${segments.length}`);
-    console.log(`   ✅ TRANSLATE (will be sent to AI): ${translateCount}`);
-    console.log(`   🔢 COPY-SOURCE (pure numbers/empty): ${copySourceCount}`);
-    console.log(`   ════════════════════════════════════════════════`);
-    console.log(`   🎯 ALL segments will get target text: ${segments.length}`);
-    console.log(
-      `   🔄 Note: Locked segments will be RETRANSLATED (not skipped)`,
-    );
-    console.log(`\n`);
-
-    // Show examples of each type
-    const translateExamples = segments
-      .filter((s) => s.kind === 'translate')
-      .slice(0, 3);
-    const copySourceExamples = segments
-      .filter((s) => s.kind === 'copy-source')
-      .slice(0, 3);
-
-    if (translateExamples.length > 0) {
-      console.log(`   📝 Example TRANSLATE segments:`);
-      translateExamples.forEach((s) => {
-        console.log(
-          `      "${s.sourceText.substring(0, 80)}${s.sourceText.length > 80 ? '...' : ''}"`,
-        );
-      });
-    }
-
-    if (copySourceExamples.length > 0) {
-      console.log(`   🔢 Example COPY-SOURCE segments:`);
-      copySourceExamples.forEach((s) => {
-        console.log(`      "${s.sourceText}"`);
-      });
-    }
-
     return segments;
   }
 
@@ -1117,9 +914,6 @@ export class DocxTranslationService {
     translations: { segmentId: string; targetText: string }[],
   ): Promise<Blob> {
     if (!this.originalBuffer) throw new Error('Original MXLIFF buffer not set');
-
-    console.log('\n💉 ============ INJECTING TRANSLATIONS ============');
-    console.log('   📊 AI translations received:', translations.length);
 
     const decoder = new TextDecoder('utf-8');
     const xmlText = decoder.decode(this.originalBuffer);
@@ -1162,7 +956,6 @@ export class DocxTranslationService {
         copiedCount++;
       } else {
         // This shouldn't happen if classification is correct
-        console.warn(`⚠️ No translation or copy-source for segment: ${id}`);
         return;
       }
 
@@ -1180,19 +973,6 @@ export class DocxTranslationService {
       targetElement.textContent = targetText;
       transUnit.setAttribute('approved', 'yes');
     });
-
-    console.log(`\n📊 ============ INJECTION SUMMARY ============`);
-    console.log(`   ✅ AI Translated: ${aiTranslatedCount} segments`);
-    console.log(`   🔢 Copied (numbers/empty): ${copiedCount} segments`);
-    console.log(`   ════════════════════════════════════════════`);
-    console.log(
-      `   🎯 Total segments updated: ${aiTranslatedCount + copiedCount}`,
-    );
-    console.log(
-      `   ✅ Coverage: 100% (${aiTranslatedCount + copiedCount} of ${transUnits.length} segments)`,
-    );
-    console.log(`   🔄 Note: Previously locked segments were RETRANSLATED`);
-    console.log(`\n`);
 
     const serializer = new XMLSerializer();
     const updatedXml = serializer.serializeToString(xmlDoc);
