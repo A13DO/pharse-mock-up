@@ -488,8 +488,41 @@ export class PhraseApiService {
         })
         .pipe(catchError(this.handleError))
         .subscribe({
-          next: (response) => {
+          next: async (response) => {
             const blob = response.body as Blob;
+
+            // Check if the blob is actually an error response (typically JSON)
+            // Error responses are usually small and have JSON content type
+            if (blob.type === 'application/json' || blob.size < 1000) {
+              try {
+                const text = await blob.text();
+                const errorData = JSON.parse(text);
+
+                // Check for JOB_NOT_READY error
+                if (
+                  errorData.errorCode === 'JOB_NOT_READY' ||
+                  (errorData.error && errorData.error.includes('JOB_NOT_READY'))
+                ) {
+                  const error = new Error(
+                    'Job is not ready yet. The job may still be importing or was not imported correctly. Please wait a moment and try again.',
+                  );
+                  (error as any).errorCode = 'JOB_NOT_READY';
+                  reject(error);
+                  return;
+                }
+
+                // Other error in JSON format
+                const message =
+                  errorData.errorDescription ||
+                  errorData.message ||
+                  'Failed to download bilingual file';
+                reject(new Error(message));
+                return;
+              } catch (e) {
+                // If it's not JSON, it might be a valid small file, continue
+              }
+            }
+
             resolve(blob);
           },
           error: (error) => {

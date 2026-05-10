@@ -86,6 +86,7 @@ export class TranslationComponent implements OnInit {
   error: string | null = null;
   successMessage: string | null = null;
   isDownloadingFile = false;
+  isJobNotReady = false; // Track if error is due to job not being ready
 
   // File state
   originalFile: File | null = null;
@@ -554,6 +555,23 @@ Please confirm you understand these instructions, and I will begin sending the t
     console.log(`✅ Prompts updated for: ${sourceLang} → ${targetLang}`);
   }
 
+  /**
+   * Retry downloading the bilingual file
+   */
+  retryDownload(): void {
+    this.error = null;
+    this.isJobNotReady = false;
+    this.downloadOriginalFile();
+  }
+
+  /**
+   * Clear error message
+   */
+  clearError(): void {
+    this.error = null;
+    this.isJobNotReady = false;
+  }
+
   async downloadOriginalFile(): Promise<void> {
     if (
       !this.projectUid ||
@@ -570,6 +588,7 @@ Please confirm you understand these instructions, and I will begin sending the t
 
     this.isDownloadingFile = true;
     this.error = null;
+    this.isJobNotReady = false;
 
     try {
       const blob = await this.phraseApi.downloadBilingualFile(
@@ -631,7 +650,16 @@ Please confirm you understand these instructions, and I will begin sending the t
       // Extract and preview
       await this.extractAndPreviewFile(this.originalFile);
     } catch (err: any) {
-      this.error = err.message || 'Failed to fetch the bilingual job file';
+      // Check for specific error codes
+      if (err.errorCode === 'JOB_NOT_READY') {
+        this.error =
+          'The job is not ready yet. It may still be importing or was not imported correctly. ' +
+          'Please wait a moment and try again.';
+        this.isJobNotReady = true;
+      } else {
+        this.error = err.message || 'Failed to fetch the bilingual job file';
+        this.isJobNotReady = false;
+      }
       this.isDownloadingFile = false;
       console.error('Download error:', err);
     }
